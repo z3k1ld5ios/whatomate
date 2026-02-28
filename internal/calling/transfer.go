@@ -248,7 +248,11 @@ func (m *Manager) completeTransferConnection(session *CallSession, transferID, a
 
 	// Signal that bridge is taking over the caller track
 	session.mu.Lock()
-	close(session.BridgeStarted)
+	select {
+	case <-session.BridgeStarted:
+	default:
+		close(session.BridgeStarted)
+	}
 	session.mu.Unlock()
 
 	// Update transfer status

@@ -174,26 +174,31 @@ func (m *Manager) HandleCallEvent(callID, event string) {
 	}
 
 	session.mu.Lock()
-	defer session.mu.Unlock()
+	var action string
+	var transferID uuid.UUID
 
 	switch event {
 	case "in_call", "connect":
 		session.Status = models.CallStatusAnswered
 	case "ended", "terminate", "missed", "unanswered":
-		// If caller hangs up during a transfer, mark it as abandoned
 		if session.TransferStatus == models.CallTransferStatusWaiting {
-			session.mu.Unlock()
-			m.HandleCallerHangupDuringTransfer(session)
-			return
+			action = "hangup_transfer"
+		} else if session.TransferStatus == models.CallTransferStatusConnected {
+			action = "end_transfer"
+			transferID = session.TransferID
+		} else {
+			session.Status = models.CallStatusCompleted
+			action = "cleanup"
 		}
-		// If caller hangs up during a connected transfer, end it
-		if session.TransferStatus == models.CallTransferStatusConnected {
-			transferID := session.TransferID
-			session.mu.Unlock()
-			m.EndTransfer(transferID)
-			return
-		}
-		session.Status = models.CallStatusCompleted
+	}
+	session.mu.Unlock()
+
+	switch action {
+	case "hangup_transfer":
+		m.HandleCallerHangupDuringTransfer(session)
+	case "end_transfer":
+		m.EndTransfer(transferID)
+	case "cleanup":
 		go m.cleanupSession(callID)
 	}
 }
