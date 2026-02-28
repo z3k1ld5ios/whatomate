@@ -263,16 +263,6 @@ func (m *Manager) getOrgCallingSettings(orgID uuid.UUID) orgCallingSettings {
 	return s
 }
 
-// getOrgTransferTimeout returns the transfer timeout for a session's organization.
-func (m *Manager) getOrgTransferTimeout(orgID uuid.UUID) int {
-	return m.getOrgCallingSettings(orgID).TransferTimeoutSecs
-}
-
-// getOrgHoldMusic returns the hold music file path for a session's organization.
-func (m *Manager) getOrgHoldMusic(orgID uuid.UUID) string {
-	return m.getOrgCallingSettings(orgID).HoldMusicFile
-}
-
 // getOrgRingback returns the ringback file path for a session's organization.
 func (m *Manager) getOrgRingback(orgID uuid.UUID) string {
 	return m.getOrgCallingSettings(orgID).RingbackFile
