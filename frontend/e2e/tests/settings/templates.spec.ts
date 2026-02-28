@@ -73,8 +73,9 @@ test.describe('Template Form Fields', () => {
   })
 
   test('should have language selector', async () => {
-    const langSelect = templatesPage.dialog.locator('label').filter({ hasText: /^Language/ }).locator('..').locator('select')
-    await expect(langSelect).toBeVisible()
+    const langCombobox = templatesPage.dialog.locator('label').filter({ hasText: /^Language/ }).locator('..').locator('[role="combobox"]')
+    await expect(langCombobox).toBeVisible()
+    await expect(langCombobox).toContainText('English')
   })
 
   test('should have category selector', async () => {
