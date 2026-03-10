@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -37,8 +38,9 @@ type CallSession struct {
 	DTMFBuffer      chan byte
 	StartedAt       time.Time
 
-	// Recording
-	Recorder *CallRecorder
+	// Recording (one per direction for correct OGG/Opus playback)
+	CallerRecorder *CallRecorder // caller's audio stream
+	AgentRecorder  *CallRecorder // agent's audio stream
 
 	// Transfer fields
 	TransferID        uuid.UUID
@@ -400,8 +402,10 @@ func (m *Manager) cleanupSession(callID string) {
 	session.PeerConnection = nil
 	dtmfBuffer := session.DTMFBuffer
 	session.DTMFBuffer = nil
-	recorder := session.Recorder
-	session.Recorder = nil
+	callerRec := session.CallerRecorder
+	session.CallerRecorder = nil
+	agentRec := session.AgentRecorder
+	session.AgentRecorder = nil
 	transferDone := session.TransferDone
 	session.TransferDone = nil
 
@@ -473,8 +477,8 @@ func (m *Manager) cleanupSession(callID string) {
 	}
 
 	// Finalize recording (async — don't block cleanup)
-	if recorder != nil {
-		go m.finalizeRecording(orgID, callLogID, recorder)
+	if callerRec != nil || agentRec != nil {
+		go m.finalizeRecording(orgID, callLogID, callerRec, agentRec)
 	}
 
 	m.log.Info("Call session cleaned up", "call_id", callID)
@@ -493,14 +497,28 @@ func (m *Manager) broadcastEvent(orgID uuid.UUID, eventType string, payload map[
 	})
 }
 
-// setupAudioBridge creates a recorder (if enabled), builds an AudioBridge,
-// and assigns both to the session under its lock.
+// setupAudioBridge creates per-direction recorders (if enabled), builds an
+// AudioBridge, and assigns everything to the session under its lock.
+// If recorders already exist on the session (e.g. after a transfer), they are
+// reused so the entire call is captured in continuous files.
 func (m *Manager) setupAudioBridge(session *CallSession) *AudioBridge {
-	recorder := m.newRecorderIfEnabled()
-	bridge := NewAudioBridge(recorder)
+	session.mu.Lock()
+	callerRec := session.CallerRecorder
+	agentRec := session.AgentRecorder
+	session.mu.Unlock()
+
+	if callerRec == nil {
+		callerRec = m.newRecorderIfEnabled()
+	}
+	if agentRec == nil {
+		agentRec = m.newRecorderIfEnabled()
+	}
+
+	bridge := NewAudioBridge(callerRec, agentRec)
 	session.mu.Lock()
 	session.Bridge = bridge
-	session.Recorder = recorder
+	session.CallerRecorder = callerRec
+	session.AgentRecorder = agentRec
 	session.mu.Unlock()
 	return bridge
 }
@@ -561,22 +579,55 @@ func (m *Manager) newRecorderIfEnabled() *CallRecorder {
 	return rec
 }
 
-// finalizeRecording stops the recorder, uploads the OGG file to S3, and updates the CallLog.
-func (m *Manager) finalizeRecording(orgID, callLogID uuid.UUID, recorder *CallRecorder) {
-	path, packetCount := recorder.Stop()
-	defer func() { _ = os.Remove(path) }()
+// finalizeRecording stops both per-direction recorders, merges them into a
+// single OGG/Opus file using FFmpeg, uploads to S3, and updates the CallLog.
+func (m *Manager) finalizeRecording(orgID, callLogID uuid.UUID, callerRec, agentRec *CallRecorder) {
+	var callerPath, agentPath string
+	var callerCount, agentCount int
 
-	if packetCount == 0 {
+	if callerRec != nil {
+		callerPath, callerCount = callerRec.Stop()
+		defer func() { _ = os.Remove(callerPath) }()
+	}
+	if agentRec != nil {
+		agentPath, agentCount = agentRec.Stop()
+		defer func() { _ = os.Remove(agentPath) }()
+	}
+
+	maxCount := callerCount
+	if agentCount > maxCount {
+		maxCount = agentCount
+	}
+	if maxCount == 0 {
 		return
 	}
 
-	// Calculate duration: each packet is 20ms, but both directions interleave,
-	// so actual call duration ≈ packetCount * 20ms / 2 (two directions).
-	durationSecs := (packetCount * 20) / 2 / 1000
+	// Duration from the longer stream (each packet = 20ms)
+	durationSecs := (maxCount * 20) / 1000
+
+	// Merge the two direction files into one using FFmpeg.
+	// If only one direction was recorded, use it directly.
+	var uploadPath string
+	switch {
+	case callerCount > 0 && agentCount > 0:
+		merged, err := mergeRecordings(callerPath, agentPath)
+		if err != nil {
+			m.log.Error("Failed to merge recordings, uploading caller only",
+				"error", err, "call_log_id", callLogID)
+			uploadPath = callerPath
+		} else {
+			defer func() { _ = os.Remove(merged) }()
+			uploadPath = merged
+		}
+	case callerCount > 0:
+		uploadPath = callerPath
+	default:
+		uploadPath = agentPath
+	}
 
 	s3Key := fmt.Sprintf("recordings/%s/%s.ogg", orgID.String(), callLogID.String())
 
-	f, err := os.Open(path)
+	f, err := os.Open(uploadPath)
 	if err != nil {
 		m.log.Error("Failed to open recording file", "error", err, "call_log_id", callLogID)
 		return
@@ -601,7 +652,35 @@ func (m *Manager) finalizeRecording(orgID, callLogID uuid.UUID, recorder *CallRe
 	m.log.Info("Recording uploaded",
 		"call_log_id", callLogID,
 		"s3_key", s3Key,
-		"packets", packetCount,
+		"caller_packets", callerCount,
+		"agent_packets", agentCount,
 		"duration_secs", durationSecs,
 	)
+}
+
+// mergeRecordings uses FFmpeg to mix two mono OGG/Opus files into one.
+func mergeRecordings(file1, file2 string) (string, error) {
+	out, err := os.CreateTemp("", "call-merged-*.ogg")
+	if err != nil {
+		return "", fmt.Errorf("create temp file: %w", err)
+	}
+	outPath := out.Name()
+	_ = out.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-i", file1,
+		"-i", file2,
+		"-filter_complex", "amix=inputs=2:duration=longest",
+		"-c:a", "libopus",
+		"-y", outPath,
+	)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		_ = os.Remove(outPath)
+		return "", fmt.Errorf("ffmpeg: %w: %s", err, output)
+	}
+
+	return outPath, nil
 }

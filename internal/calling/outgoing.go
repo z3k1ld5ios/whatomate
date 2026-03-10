@@ -491,8 +491,10 @@ func (m *Manager) HangupOutgoingCall(callLogID, agentID uuid.UUID) error {
 	session.PeerConnection = nil
 	session.AgentAudioTrack = nil
 	session.AgentRemoteTrack = nil
-	recorder := session.Recorder
-	session.Recorder = nil
+	callerRec := session.CallerRecorder
+	session.CallerRecorder = nil
+	agentRec := session.AgentRecorder
+	session.AgentRecorder = nil
 	session.mu.Unlock()
 
 	if ap != nil {
@@ -500,8 +502,8 @@ func (m *Manager) HangupOutgoingCall(callLogID, agentID uuid.UUID) error {
 	}
 
 	// Finalize recording before IVR starts
-	if recorder != nil {
-		go m.finalizeRecording(session.OrganizationID, session.CallLogID, recorder)
+	if callerRec != nil || agentRec != nil {
+		go m.finalizeRecording(session.OrganizationID, session.CallLogID, callerRec, agentRec)
 	}
 
 	// 4. Set IVR flow on the session
