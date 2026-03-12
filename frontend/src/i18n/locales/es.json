@@ -381,6 +381,8 @@
     "templateSent": "Plantilla enviada",
     "templateSendFailed": "Error al enviar plantilla",
     "parameterRequired": "Todos los parámetros son obligatorios",
+    "urlButtonParam": "Botón URL \"{button}\" - valor dinámico",
+    "urlButtonParamPlaceholder": "Ingrese el valor dinámico de la URL",
     "preview": "Vista previa",
     "serviceWindowExpired": "La ventana de mensajería de 24 horas ha expirado. Solo se pueden enviar mensajes de plantilla hasta que el cliente responda.",
     "sendTemplateAction": "Enviar plantilla"

@@ -381,6 +381,8 @@
     "templateSent": "வார்ப்புரு அனுப்பப்பட்டது",
     "templateSendFailed": "வார்ப்புருவை அனுப்ப முடியவில்லை",
     "parameterRequired": "அனைத்து அளவுருக்களும் தேவை",
+    "urlButtonParam": "URL பொத்தான் \"{button}\" - மாறும் மதிப்பு",
+    "urlButtonParamPlaceholder": "மாறும் URL மதிப்பை உள்ளிடவும்",
     "preview": "முன்னோட்டம்",
     "serviceWindowExpired": "24 மணிநேர செய்தியிடல் சாளரம் காலாவதியானது. வாடிக்கையாளர் பதிலளிக்கும் வரை வார்ப்புரு செய்திகளை மட்டுமே அனுப்ப முடியும்.",
     "sendTemplateAction": "வார்ப்புருவை அனுப்பு"

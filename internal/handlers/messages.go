@@ -51,9 +51,10 @@ type OutgoingMessageRequest struct {
 	URL             string            // For CTA URL button
 
 	// Template messages
-	Template      *models.Template
-	BodyParams    map[string]string // Parameter name -> value (supports both named and positional)
-	HeaderMediaID string            // WhatsApp media ID for template header (IMAGE/VIDEO/DOCUMENT)
+	Template        *models.Template
+	BodyParams      map[string]string // Parameter name -> value (supports both named and positional)
+	HeaderMediaID   string            // WhatsApp media ID for template header (IMAGE/VIDEO/DOCUMENT)
+	ButtonURLParams map[string]string // Button index (as string) -> dynamic URL param value
 
 	// WhatsApp Flow messages
 	FlowID          string // Meta Flow ID
@@ -186,6 +187,8 @@ func (a *App) SendOutgoingMessage(ctx context.Context, req OutgoingMessageReques
 				return "", fmt.Errorf("template is required for template messages")
 			}
 			components := whatsapp.BuildTemplateComponents(req.BodyParams, req.Template.HeaderType, req.HeaderMediaID)
+			buttonComponents := whatsapp.ButtonURLParamsToComponents(req.ButtonURLParams)
+			components = append(components, buttonComponents...)
 			return a.WhatsApp.SendTemplateMessage(sendCtx, waAccount, req.Contact.PhoneNumber, req.Template.Name, req.Template.Language, components)
 
 		case models.MessageTypeFlow:
@@ -545,6 +548,7 @@ type SendTemplateMessageRequest struct {
 	TemplateName   string            `json:"template_name"`   // Template name
 	TemplateID     string            `json:"template_id"`     // Alternative: template UUID
 	TemplateParams map[string]string `json:"template_params"` // Named or positional params
+	ButtonParams   map[string]string `json:"button_params"`   // Button index -> dynamic URL param value
 	AccountName    string            `json:"account_name"`    // Optional: specific WhatsApp account
 
 	// Header media for templates with IMAGE/VIDEO/DOCUMENT headers.
@@ -594,6 +598,12 @@ func (a *App) SendTemplateMessage(r *fastglue.Request) error {
 		if v := form.Value["template_params"]; len(v) > 0 && v[0] != "" {
 			if err := json.Unmarshal([]byte(v[0]), &req.TemplateParams); err != nil {
 				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid template_params JSON", nil, "")
+			}
+		}
+		// Parse button_params from JSON string
+		if v := form.Value["button_params"]; len(v) > 0 && v[0] != "" {
+			if err := json.Unmarshal([]byte(v[0]), &req.ButtonParams); err != nil {
+				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid button_params JSON", nil, "")
 			}
 		}
 		// Read header media file
@@ -778,14 +788,15 @@ func (a *App) SendTemplateMessage(r *fastglue.Request) error {
 
 	// Send using unified message sender
 	msgReq := OutgoingMessageRequest{
-		Account:       account,
-		Contact:       contact,
-		Type:          models.MessageTypeTemplate,
-		Template:      &template,
-		BodyParams:    req.TemplateParams,
-		HeaderMediaID: headerMediaID,
-		MediaURL:      headerLocalPath,
-		MediaMimeType: headerMimeType,
+		Account:         account,
+		Contact:         contact,
+		Type:            models.MessageTypeTemplate,
+		Template:        &template,
+		BodyParams:      req.TemplateParams,
+		HeaderMediaID:   headerMediaID,
+		MediaURL:        headerLocalPath,
+		MediaMimeType:   headerMimeType,
+		ButtonURLParams: req.ButtonParams,
 	}
 
 	opts := DefaultSendOptions()

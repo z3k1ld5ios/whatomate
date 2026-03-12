@@ -387,6 +387,8 @@
     "headerVideo": "Header Video",
     "headerDocument": "Header Document",
     "clickToUpload": "Click to upload file",
+    "urlButtonParam": "URL Button \"{button}\" - dynamic value",
+    "urlButtonParamPlaceholder": "Enter dynamic URL value",
     "preview": "Preview",
     "serviceWindowExpired": "The 24-hour messaging window has expired. Only template messages can be sent until the customer replies.",
     "sendTemplateAction": "Send Template"

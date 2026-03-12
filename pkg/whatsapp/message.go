@@ -300,6 +300,34 @@ func BuildTemplateComponents(bodyParams map[string]string, headerType string, he
 	return components
 }
 
+// ButtonURLParamsToComponents converts button URL parameters to WhatsApp API button components.
+// buttonParams maps button index (as string like "0", "1") to the dynamic URL suffix value.
+// Each entry produces a component like: {"type": "button", "sub_type": "url", "index": "0", "parameters": [{"type": "text", "text": "value"}]}
+func ButtonURLParamsToComponents(buttonParams map[string]string) []map[string]interface{} {
+	if len(buttonParams) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(buttonParams))
+	for k := range buttonParams {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	components := make([]map[string]interface{}, 0, len(buttonParams))
+	for _, index := range keys {
+		components = append(components, map[string]interface{}{
+			"type":     "button",
+			"sub_type": "url",
+			"index":    index,
+			"parameters": []map[string]interface{}{
+				{"type": "text", "text": buttonParams[index]},
+			},
+		})
+	}
+	return components
+}
+
 // SendFlowMessage sends an interactive WhatsApp Flow message
 // flowID is the Meta Flow ID, headerText is optional header, bodyText is the message body,
 // ctaText is the button text, flowToken is a unique token for tracking the flow response,

@@ -159,6 +159,7 @@ const templateDialogOpen = ref(false)
 const selectedTemplate = ref<any>(null)
 const templateParamNames = ref<string[]>([])
 const templateParamValues = ref<Record<string, string>>({})
+const templateButtonUrlParams = ref<{ index: number; text: string; value: string }[]>([])
 const isSendingTemplate = ref(false)
 const templateHeaderType = computed(() => selectedTemplate.value?.header_type)
 const {
@@ -747,20 +748,33 @@ const templatePreview = computed(() => {
   return body
 })
 
+function extractButtonUrlParams(buttons: any[]): { index: number; text: string; value: string }[] {
+  if (!buttons?.length) return []
+  return buttons
+    .map((btn: any, index: number) => {
+      if (btn.type !== 'URL' || !btn.url) return null
+      const hasParams = /\{\{[^}]+\}\}/.test(btn.url)
+      if (!hasParams) return null
+      return { index, text: btn.text || 'URL Button', value: '' }
+    })
+    .filter((b): b is { index: number; text: string; value: string } => b !== null)
+}
+
 function handleTemplateWithParams(template: any, paramNames: string[]) {
   selectedTemplate.value = template
   templateParamNames.value = paramNames
   templateParamValues.value = Object.fromEntries(paramNames.map(n => [n, '']))
   clearTemplateHeaderMedia()
+  templateButtonUrlParams.value = extractButtonUrlParams(template.buttons)
   templateDialogOpen.value = true
 }
 
 async function sendTemplateMessage() {
   if (!contactsStore.currentContact || !selectedTemplate.value) return
 
-  // Validate all params are filled
-  const missing = templateParamNames.value.some(n => !templateParamValues.value[n]?.trim())
-  if (missing) {
+  // Validate all body params are filled
+  const missingBody = templateParamNames.value.some(n => !templateParamValues.value[n]?.trim())
+  if (missingBody) {
     toast.error(t('chat.parameterRequired'))
     return
   }
@@ -771,6 +785,20 @@ async function sendTemplateMessage() {
     return
   }
 
+  // Validate all button URL params are filled
+  const missingButton = templateButtonUrlParams.value.some(b => !b.value?.trim())
+  if (missingButton) {
+    toast.error(t('chat.parameterRequired'))
+    return
+  }
+
+  // Build button params map: button index -> value
+  const buttonParams: Record<string, string> | undefined =
+    templateButtonUrlParams.value.length > 0
+      ? Object.fromEntries(templateButtonUrlParams.value.map(b => [String(b.index), b.value]))
+      : undefined
+
+
   isSendingTemplate.value = true
   try {
     await contactsStore.sendTemplate(
@@ -778,7 +806,8 @@ async function sendTemplateMessage() {
       selectedTemplate.value.name,
       templateParamValues.value,
       selectedAccount.value || undefined,
-      templateHeaderFile.value || undefined
+      templateHeaderFile.value || undefined,
+      buttonParams
     )
     toast.success(t('chat.templateSent'))
     templateDialogOpen.value = false
@@ -786,6 +815,7 @@ async function sendTemplateMessage() {
     templateParamNames.value = []
     templateParamValues.value = {}
     clearTemplateHeaderMedia()
+    templateButtonUrlParams.value = []
   } catch {
     toast.error(t('chat.templateSendFailed'))
   } finally {
@@ -2177,6 +2207,14 @@ async function sendMediaMessage() {
             <Input
               v-model="templateParamValues[param]"
               :placeholder="param"
+              class="h-9"
+            />
+          </div>
+          <div v-for="(btnParam, idx) in templateButtonUrlParams" :key="`btn-${btnParam.index}`" class="space-y-1">
+            <label class="text-sm font-medium">{{ $t('chat.urlButtonParam', { button: btnParam.text }) }}</label>
+            <Input
+              v-model="templateButtonUrlParams[idx].value"
+              :placeholder="$t('chat.urlButtonParamPlaceholder')"
               class="h-9"
             />
           </div>
