@@ -61,6 +61,18 @@ api.interceptors.request.use(
   }
 )
 
+// Token refresh mutex — ensures only one refresh runs at a time.
+// Without this, multiple concurrent 401s each trigger a refresh, but the
+// single-use refresh token (JTI deleted from Redis) causes all but the first
+// to fail, which clears auth and logs the user out.
+let isRefreshing = false
+let refreshSubscribers: Array<(success: boolean) => void> = []
+
+function onRefreshComplete(success: boolean) {
+  refreshSubscribers.forEach(cb => cb(success))
+  refreshSubscribers = []
+}
+
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
@@ -74,14 +86,36 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true
 
+      // If a refresh is already in flight, queue this request to wait for it
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          refreshSubscribers.push((success: boolean) => {
+            if (success) {
+              resolve(api(originalRequest))
+            } else {
+              reject(error)
+            }
+          })
+        })
+      }
+
+      isRefreshing = true
+
       try {
         // Browser sends whm_refresh cookie automatically via withCredentials
         await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
 
-        // Cookies are updated by the server response — retry the original request
+        // Cookies are updated by the server response — notify waiting requests
+        onRefreshComplete(true)
+        isRefreshing = false
+
+        // Retry the original request
         return api(originalRequest)
       } catch {
-        // Refresh failed, clear user and redirect to login
+        // Refresh failed — notify waiting requests and redirect to login
+        onRefreshComplete(false)
+        isRefreshing = false
+
         localStorage.removeItem('user')
         localStorage.removeItem('auth_token')
         localStorage.removeItem('refresh_token')

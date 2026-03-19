@@ -27,9 +27,12 @@ const authStore = useAuthStore()
 const isCollapsed = ref(false)
 const isMobileMenuOpen = ref(false)
 
-// Connect WebSocket on mount using short-lived WS token
+// Refresh user data and connect WebSocket on mount
 onMounted(() => {
   if (authStore.isAuthenticated) {
+    // Fetch fresh permissions in background (non-destructive — interceptor handles 401)
+    authStore.refreshUserData()
+
     wsService.connect(async () => {
       try {
         const resp = await authService.getWSToken()
