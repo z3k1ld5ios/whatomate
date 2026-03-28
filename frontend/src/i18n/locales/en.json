@@ -1904,7 +1904,13 @@
     "sessionTimeout": "Session Timeout",
     "minutes": "{count} minutes",
     "aiProvider": "AI Provider",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "confirmDisableTitle": "Disable Chatbot",
+    "confirmDisableDescription": "The chatbot will stop responding to incoming messages. You can re-enable it at any time.",
+    "confirmEnableTitle": "Enable Chatbot",
+    "confirmEnableDescription": "The chatbot will start responding to incoming messages automatically.",
+    "fetchErrorTitle": "Failed to Load",
+    "fetchErrorDescription": "Could not load chatbot settings. Please try again."
   },
   "agentAnalytics": {
     "title": "Agent Analytics",

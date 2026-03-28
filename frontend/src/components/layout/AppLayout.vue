@@ -17,6 +17,7 @@ import { authService } from '@/services/api'
 import OrganizationSwitcher from './OrganizationSwitcher.vue'
 import UserMenu from './UserMenu.vue'
 import ActiveCallPanel from '@/components/calling/ActiveCallPanel.vue'
+import { ScrollToTop } from '@/components/shared'
 import { navigationItems } from './navigation'
 
 useI18n() // Enable $t() in template
@@ -223,6 +224,7 @@ const handleLogout = async () => {
         </Transition>
       </RouterView>
       <ActiveCallPanel />
+      <ScrollToTop />
     </main>
   </div>
 </template>
