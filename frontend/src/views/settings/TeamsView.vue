@@ -55,7 +55,8 @@ const debouncedSearch = useDebounceFn(() => {
 watch(searchQuery, () => debouncedSearch())
 
 const columns = computed<Column<Team>[]>(() => [
-  { key: 'team', label: t('teams.team'), width: 'w-[250px]', sortable: true, sortKey: 'name' },
+  { key: 'team', label: t('teams.team'), width: 'w-[200px]', sortable: true, sortKey: 'name' },
+  { key: 'description', label: t('common.description', 'Description') },
   { key: 'strategy', label: t('teams.strategy'), sortable: true, sortKey: 'assignment_strategy' },
   { key: 'members', label: t('teams.members'), sortable: true, sortKey: 'member_count' },
   { key: 'status', label: t('teams.status'), sortable: true, sortKey: 'is_active' },
@@ -134,7 +135,7 @@ async function confirmDelete() {
 
     <ScrollArea v-else class="flex-1">
       <div class="p-6">
-        <div class="max-w-5xl mx-auto">
+        <div>
           <Card>
             <CardHeader>
               <div class="flex items-center justify-between">
@@ -155,6 +156,9 @@ async function confirmDelete() {
                     <div class="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"><Users class="h-4 w-4 text-primary" /></div>
                     <p class="font-medium truncate">{{ team.name }}</p>
                   </RouterLink>
+                </template>
+                <template #cell-description="{ item: team }">
+                  <span class="text-sm text-muted-foreground truncate max-w-[300px] block">{{ team.description || '—' }}</span>
                 </template>
                 <template #cell-strategy="{ item: team }">
                   <div class="flex items-center gap-2">
