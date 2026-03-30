@@ -292,22 +292,26 @@ func (CustomAction) TableName() string {
 // WhatsAppAccount represents a WhatsApp Business Account
 type WhatsAppAccount struct {
 	BaseModel
-	OrganizationID     uuid.UUID `gorm:"type:uuid;index;not null" json:"organization_id"`
-	Name               string    `gorm:"size:100;uniqueIndex:idx_wa_org_name;not null" json:"name"` // Unique per org, used as reference
-	AppID              string    `gorm:"size:100" json:"app_id"`                                    // Meta App ID
-	PhoneID            string    `gorm:"size:100;not null" json:"phone_id"`
-	BusinessID         string    `gorm:"size:100;not null" json:"business_id"`
-	AccessToken        string    `gorm:"type:text;not null" json:"-"` // encrypted
-	AppSecret          string    `gorm:"size:255" json:"-"`           // Meta App Secret for webhook signature verification
-	WebhookVerifyToken string    `gorm:"size:255" json:"webhook_verify_token"`
-	APIVersion         string    `gorm:"size:20;default:'v21.0'" json:"api_version"`
-	IsDefaultIncoming  bool      `gorm:"default:false" json:"is_default_incoming"`
-	IsDefaultOutgoing  bool      `gorm:"default:false" json:"is_default_outgoing"`
-	AutoReadReceipt    bool      `gorm:"default:false" json:"auto_read_receipt"`
-	Status             string    `gorm:"size:20;default:'active'" json:"status"`
+	OrganizationID     uuid.UUID  `gorm:"type:uuid;index;not null" json:"organization_id"`
+	Name               string     `gorm:"size:100;uniqueIndex:idx_wa_org_name;not null" json:"name"` // Unique per org, used as reference
+	AppID              string     `gorm:"size:100" json:"app_id"`                                    // Meta App ID
+	PhoneID            string     `gorm:"size:100;not null" json:"phone_id"`
+	BusinessID         string     `gorm:"size:100;not null" json:"business_id"`
+	AccessToken        string     `gorm:"type:text;not null" json:"-"` // encrypted
+	AppSecret          string     `gorm:"size:255" json:"-"`           // Meta App Secret for webhook signature verification
+	WebhookVerifyToken string     `gorm:"size:255" json:"webhook_verify_token"`
+	APIVersion         string     `gorm:"size:20;default:'v21.0'" json:"api_version"`
+	IsDefaultIncoming  bool       `gorm:"default:false" json:"is_default_incoming"`
+	IsDefaultOutgoing  bool       `gorm:"default:false" json:"is_default_outgoing"`
+	AutoReadReceipt    bool       `gorm:"default:false" json:"auto_read_receipt"`
+	Status             string     `gorm:"size:20;default:'active'" json:"status"`
+	CreatedByID        *uuid.UUID `gorm:"type:uuid" json:"created_by_id,omitempty"`
+	UpdatedByID        *uuid.UUID `gorm:"type:uuid" json:"updated_by_id,omitempty"`
 
 	// Relations
 	Organization *Organization `gorm:"foreignKey:OrganizationID" json:"organization,omitempty"`
+	CreatedBy    *User         `gorm:"foreignKey:CreatedByID" json:"created_by,omitempty"`
+	UpdatedBy    *User         `gorm:"foreignKey:UpdatedByID" json:"updated_by,omitempty"`
 }
 
 func (WhatsAppAccount) TableName() string {

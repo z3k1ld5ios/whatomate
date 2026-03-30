@@ -17,6 +17,7 @@ var skipFields = map[string]bool{
 	"created_by_id": true, "updated_by_id": true,
 	"created_by": true, "updated_by": true,
 	"organization": true, "members": true,
+	"webhook_verify_token": true,
 }
 
 // ComputeChanges compares old and new structs via JSON serialization.
