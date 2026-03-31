@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shridarpatil/whatomate/internal/audit"
 	"github.com/shridarpatil/whatomate/internal/models"
 	"github.com/shridarpatil/whatomate/internal/queue"
 	"github.com/shridarpatil/whatomate/internal/utils"
@@ -48,6 +49,8 @@ type CampaignResponse struct {
 	ScheduledAt     *time.Time           `json:"scheduled_at,omitempty"`
 	StartedAt       *time.Time           `json:"started_at,omitempty"`
 	CompletedAt     *time.Time           `json:"completed_at,omitempty"`
+	CreatedByName   string               `json:"created_by_name,omitempty"`
+	UpdatedByName   string               `json:"updated_by_name,omitempty"`
 	CreatedAt       time.Time            `json:"created_at"`
 	UpdatedAt       time.Time            `json:"updated_at"`
 }
@@ -178,12 +181,16 @@ func (a *App) CreateCampaign(r *fastglue.Request) error {
 		Status:          models.CampaignStatusDraft,
 		ScheduledAt:     req.ScheduledAt,
 		CreatedBy:       userID,
+		UpdatedByID:     &userID,
 	}
 
 	if err := a.DB.Create(&campaign).Error; err != nil {
 		a.Log.Error("Failed to create campaign", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to create campaign", nil, "")
 	}
+
+	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+		"campaign", campaign.ID, models.AuditActionCreated, nil, &campaign)
 
 	a.Log.Info("Campaign created", "campaign_id", campaign.ID, "name", campaign.Name)
 
@@ -222,6 +229,8 @@ func (a *App) GetCampaign(r *fastglue.Request) error {
 	var campaign models.BulkMessageCampaign
 	if err := a.DB.Where("id = ? AND organization_id = ?", id, orgID).
 		Preload("Template").
+		Preload("Creator").
+		Preload("UpdatedBy").
 		First(&campaign).Error; err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusNotFound, "Campaign not found", nil, "")
 	}
@@ -248,13 +257,19 @@ func (a *App) GetCampaign(r *fastglue.Request) error {
 	if campaign.Template != nil {
 		response.TemplateName = campaign.Template.Name
 	}
+	if campaign.Creator != nil {
+		response.CreatedByName = campaign.Creator.FullName
+	}
+	if campaign.UpdatedBy != nil {
+		response.UpdatedByName = campaign.UpdatedBy.FullName
+	}
 
 	return r.SendEnvelope(response)
 }
 
 // UpdateCampaign implements campaign update
 func (a *App) UpdateCampaign(r *fastglue.Request) error {
-	orgID, err := a.getOrgID(r)
+	orgID, userID, err := a.getOrgAndUserID(r)
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, "Unauthorized", nil, "")
 	}
@@ -274,6 +289,8 @@ func (a *App) UpdateCampaign(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Can only update draft campaigns", nil, "")
 	}
 
+	oldCampaign := *campaign
+
 	var req CampaignRequest
 	if err := a.decodeRequest(r, &req); err != nil {
 		return nil
@@ -281,8 +298,9 @@ func (a *App) UpdateCampaign(r *fastglue.Request) error {
 
 	// Update fields
 	updates := map[string]interface{}{
-		"name":         req.Name,
-		"scheduled_at": req.ScheduledAt,
+		"name":           req.Name,
+		"scheduled_at":   req.ScheduledAt,
+		"updated_by_id":  userID,
 	}
 
 	if req.TemplateID != "" {
@@ -303,7 +321,10 @@ func (a *App) UpdateCampaign(r *fastglue.Request) error {
 	}
 
 	// Reload campaign
-	a.DB.Where("id = ?", id).Preload("Template").First(campaign)
+	a.DB.Where("id = ?", id).Preload("Template").Preload("Creator").Preload("UpdatedBy").First(campaign)
+
+	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+		"campaign", campaign.ID, models.AuditActionUpdated, &oldCampaign, campaign)
 
 	response := CampaignResponse{
 		ID:                  campaign.ID,
@@ -325,13 +346,19 @@ func (a *App) UpdateCampaign(r *fastglue.Request) error {
 	if campaign.Template != nil {
 		response.TemplateName = campaign.Template.Name
 	}
+	if campaign.Creator != nil {
+		response.CreatedByName = campaign.Creator.FullName
+	}
+	if campaign.UpdatedBy != nil {
+		response.UpdatedByName = campaign.UpdatedBy.FullName
+	}
 
 	return r.SendEnvelope(response)
 }
 
 // DeleteCampaign implements campaign deletion
 func (a *App) DeleteCampaign(r *fastglue.Request) error {
-	orgID, err := a.getOrgID(r)
+	orgID, userID, err := a.getOrgAndUserID(r)
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, "Unauthorized", nil, "")
 	}
@@ -362,6 +389,9 @@ func (a *App) DeleteCampaign(r *fastglue.Request) error {
 		a.Log.Error("Failed to delete campaign", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to delete campaign", nil, "")
 	}
+
+	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+		"campaign", id, models.AuditActionDeleted, campaign, nil)
 
 	a.Log.Info("Campaign deleted", "campaign_id", id)
 

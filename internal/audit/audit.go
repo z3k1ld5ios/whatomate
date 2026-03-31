@@ -33,8 +33,14 @@ var skipFields = map[string]bool{
 	"initial_message_type": true,
 	"initial_template_id":  true,
 	"timeout_message":      true,
-	"menu":                 true,
-	"welcome_audio_url":    true,
+	"menu":                      true,
+	"welcome_audio_url":         true,
+	"header_media_id":           true,
+	"header_media_local_path":   true,
+	"template_id":               true,
+	"recipients":                true,
+	"template":                  true,
+	"creator":                   true,
 }
 
 // flattenFields extracts readable sub-fields from JSONB objects.
