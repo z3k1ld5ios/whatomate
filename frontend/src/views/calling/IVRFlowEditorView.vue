@@ -486,8 +486,8 @@ onMounted(() => {
         </div>
 
         <!-- Metadata + Activity Log (when no node is selected) -->
-        <ScrollArea v-else class="flex-1">
-          <div class="p-4 space-y-4">
+        <ScrollArea v-else class="flex-1 [&>div>div]:!overflow-x-hidden">
+          <div class="p-4 space-y-4 overflow-hidden">
             <MetadataPanel
               :created-at="flowCreatedAt"
               :updated-at="flowUpdatedAt"

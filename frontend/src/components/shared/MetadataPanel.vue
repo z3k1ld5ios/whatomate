@@ -13,7 +13,7 @@ defineProps<{
 </script>
 
 <template>
-  <Card>
+  <Card class="overflow-hidden">
     <CardHeader class="pb-3">
       <CardTitle class="text-sm font-medium">{{ $t('common.metadata', 'Metadata') }}</CardTitle>
     </CardHeader>
