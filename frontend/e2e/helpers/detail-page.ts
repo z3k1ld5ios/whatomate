@@ -6,13 +6,11 @@ import { Page, expect } from '@playwright/test'
 
 export async function expectMetadataVisible(page: Page) {
   const el = page.getByText('Metadata')
-  await el.scrollIntoViewIfNeeded()
   await expect(el).toBeVisible({ timeout: 10000 })
 }
 
 export async function expectActivityLogVisible(page: Page) {
   const el = page.getByText('Activity Log')
-  await el.scrollIntoViewIfNeeded()
   await expect(el).toBeVisible({ timeout: 10000 })
 }
 
@@ -29,11 +27,18 @@ export async function expectSaveButtonOnChange(page: Page) {
 }
 
 export async function expectDeleteFromForm(page: Page, listUrl: string) {
+  // Dismiss any toast that might block clicks
+  const toast = page.locator('[data-sonner-toast]').first()
+  if (await toast.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await toast.click().catch(() => {})
+    await page.waitForTimeout(500)
+  }
+
   const deleteBtn = page.getByRole('button', { name: /Delete/i })
   if (await deleteBtn.isVisible()) {
-    await deleteBtn.click({ force: true })
+    await deleteBtn.click()
     const dialog = page.locator('[role="alertdialog"]')
-    await expect(dialog).toBeVisible({ timeout: 3000 })
+    await expect(dialog).toBeVisible({ timeout: 5000 })
     await dialog.getByRole('button', { name: /Delete/i }).click()
     await page.waitForTimeout(2000)
     expect(page.url()).toContain(listUrl)

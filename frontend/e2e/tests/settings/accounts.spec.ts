@@ -150,9 +150,7 @@ test.describe('WhatsApp Accounts - Detail Page CRUD', () => {
     await page.waitForLoadState('networkidle')
 
     if (await navigateToFirstItem(page)) {
-      const el = page.getByText('Setup Guide')
-      await el.scrollIntoViewIfNeeded()
-      await expect(el).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('Setup Guide')).toBeVisible({ timeout: 10000 })
     }
   })
 })
