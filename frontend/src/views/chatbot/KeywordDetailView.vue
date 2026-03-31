@@ -59,8 +59,8 @@ const deleteDialogOpen = ref(false)
 
 const { showLeaveDialog, confirmLeave, cancelLeave } = useUnsavedChangesGuard(hasChanges)
 
-const canWrite = computed(() => authStore.hasPermission('chatbot', 'write'))
-const canDelete = computed(() => authStore.hasPermission('chatbot', 'delete'))
+const canWrite = computed(() => authStore.hasPermission('chatbot.keywords', 'write'))
+const canDelete = computed(() => authStore.hasPermission('chatbot.keywords', 'delete'))
 
 interface ButtonItem {
   id: string
