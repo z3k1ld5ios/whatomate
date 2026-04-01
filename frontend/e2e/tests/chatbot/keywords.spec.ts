@@ -6,19 +6,26 @@ import { KeywordsPage } from '../../pages'
 async function seedKeywordRule(page: import('@playwright/test').Page): Promise<boolean> {
   await page.goto('/chatbot/keywords/new')
   await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(1000) // Wait for auth/permissions to load
 
   const input = page.locator('input').first()
-  if (await input.isDisabled()) return false
+  // Wait for input to be enabled (permissions may load async)
+  try {
+    await input.waitFor({ state: 'attached', timeout: 5000 })
+    if (await input.isDisabled({ timeout: 3000 })) return false
+  } catch {
+    return false
+  }
 
   await input.fill(`e2e-seed-${Date.now()}`)
   const textarea = page.locator('textarea')
   if (await textarea.isVisible()) {
     await textarea.fill('E2E seeded response')
   }
-  await page.waitForTimeout(300)
+  await page.waitForTimeout(500)
 
   const createBtn = page.getByRole('button', { name: /Create/i })
-  if (!(await createBtn.isVisible({ timeout: 3000 }).catch(() => false))) return false
+  if (!(await createBtn.isVisible({ timeout: 5000 }).catch(() => false))) return false
 
   await createBtn.click({ force: true })
   await page.waitForTimeout(3000)

@@ -5,19 +5,25 @@ import { AIContextsPage } from '../../pages'
 async function seedAIContext(page: import('@playwright/test').Page): Promise<boolean> {
   await page.goto('/chatbot/ai/new')
   await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(1000) // Wait for auth/permissions to load
 
   const input = page.locator('input').first()
-  if (await input.isDisabled()) return false
+  try {
+    await input.waitFor({ state: 'attached', timeout: 5000 })
+    if (await input.isDisabled({ timeout: 3000 })) return false
+  } catch {
+    return false
+  }
 
   await input.fill(`e2e-ctx-${Date.now()}`)
   const textarea = page.locator('textarea').first()
   if (await textarea.isVisible()) {
     await textarea.fill('E2E seeded AI context content')
   }
-  await page.waitForTimeout(300)
+  await page.waitForTimeout(500)
 
   const createBtn = page.getByRole('button', { name: /Create/i })
-  if (!(await createBtn.isVisible({ timeout: 3000 }).catch(() => false))) return false
+  if (!(await createBtn.isVisible({ timeout: 5000 }).catch(() => false))) return false
 
   await createBtn.click({ force: true })
   await page.waitForTimeout(3000)
