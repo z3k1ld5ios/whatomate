@@ -83,7 +83,7 @@ func (a *App) ListRoles(r *fastglue.Request) error {
 		response[i] = roleToResponse(role, userCount)
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"roles": response,
 		"total": total,
 		"page":  pg.Page,
@@ -362,7 +362,7 @@ func (a *App) ListPermissions(r *fastglue.Request) error {
 		}
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"permissions": response,
 	})
 }

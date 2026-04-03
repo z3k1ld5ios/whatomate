@@ -63,56 +63,56 @@ func (c *Client) SendInteractiveButtons(ctx context.Context, account *Account, p
 		return "", fmt.Errorf("maximum 10 buttons allowed")
 	}
 
-	var interactive map[string]interface{}
+	var interactive map[string]any
 
 	if len(buttons) <= 3 {
 		// Use button format
-		buttonsList := make([]map[string]interface{}, 0, len(buttons))
+		buttonsList := make([]map[string]any, 0, len(buttons))
 		for _, btn := range buttons {
 			title := btn.Title
 			if len(title) > 20 {
 				title = title[:20]
 			}
-			buttonsList = append(buttonsList, map[string]interface{}{
+			buttonsList = append(buttonsList, map[string]any{
 				"type": "reply",
-				"reply": map[string]interface{}{
+				"reply": map[string]any{
 					"id":    btn.ID,
 					"title": title,
 				},
 			})
 		}
 
-		interactive = map[string]interface{}{
+		interactive = map[string]any{
 			"type": "button",
-			"body": map[string]interface{}{
+			"body": map[string]any{
 				"text": bodyText,
 			},
-			"action": map[string]interface{}{
+			"action": map[string]any{
 				"buttons": buttonsList,
 			},
 		}
 	} else {
 		// Use list format for 4-10 items
-		rows := make([]map[string]interface{}, 0, len(buttons))
+		rows := make([]map[string]any, 0, len(buttons))
 		for _, btn := range buttons {
 			title := btn.Title
 			if len(title) > 24 {
 				title = title[:24]
 			}
-			rows = append(rows, map[string]interface{}{
+			rows = append(rows, map[string]any{
 				"id":    btn.ID,
 				"title": title,
 			})
 		}
 
-		interactive = map[string]interface{}{
+		interactive = map[string]any{
 			"type": "list",
-			"body": map[string]interface{}{
+			"body": map[string]any{
 				"text": bodyText,
 			},
-			"action": map[string]interface{}{
+			"action": map[string]any{
 				"button": "Select an option",
-				"sections": []map[string]interface{}{
+				"sections": []map[string]any{
 					{
 						"title": "Options",
 						"rows":  rows,
@@ -122,7 +122,7 @@ func (c *Client) SendInteractiveButtons(ctx context.Context, account *Account, p
 		}
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
 		"to":                phoneNumber,
@@ -165,21 +165,21 @@ func (c *Client) SendCTAURLButton(ctx context.Context, account *Account, phoneNu
 		buttonText = buttonText[:20]
 	}
 
-	interactive := map[string]interface{}{
+	interactive := map[string]any{
 		"type": "cta_url",
-		"body": map[string]interface{}{
+		"body": map[string]any{
 			"text": bodyText,
 		},
-		"action": map[string]interface{}{
+		"action": map[string]any{
 			"name": "cta_url",
-			"parameters": map[string]interface{}{
+			"parameters": map[string]any{
 				"display_text": buttonText,
 				"url":          url,
 			},
 		},
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
 		"to":                phoneNumber,
@@ -229,7 +229,7 @@ type TemplateParam struct {
 // SendTemplateMessage sends a template message
 // BodyParamsToComponents converts a bodyParams map into WhatsApp template components.
 // Supports both positional (numeric keys) and named parameters.
-func BodyParamsToComponents(bodyParams map[string]string) []map[string]interface{} {
+func BodyParamsToComponents(bodyParams map[string]string) []map[string]any {
 	if len(bodyParams) == 0 {
 		return nil
 	}
@@ -250,9 +250,9 @@ func BodyParamsToComponents(bodyParams map[string]string) []map[string]interface
 	}
 	sort.Strings(keys)
 
-	params := make([]map[string]interface{}, 0, len(bodyParams))
+	params := make([]map[string]any, 0, len(bodyParams))
 	for _, key := range keys {
-		param := map[string]interface{}{
+		param := map[string]any{
 			"type": "text",
 			"text": bodyParams[key],
 		}
@@ -262,7 +262,7 @@ func BodyParamsToComponents(bodyParams map[string]string) []map[string]interface
 		params = append(params, param)
 	}
 
-	return []map[string]interface{}{
+	return []map[string]any{
 		{
 			"type":       "body",
 			"parameters": params,
@@ -272,21 +272,21 @@ func BodyParamsToComponents(bodyParams map[string]string) []map[string]interface
 
 // BuildTemplateComponents builds the full WhatsApp template components array,
 // including an optional header component (for IMAGE/VIDEO/DOCUMENT) and body parameters.
-func BuildTemplateComponents(bodyParams map[string]string, headerType string, headerMediaID string) []map[string]interface{} {
-	var components []map[string]interface{}
+func BuildTemplateComponents(bodyParams map[string]string, headerType string, headerMediaID string) []map[string]any {
+	var components []map[string]any
 
 	// Add header component if media is provided
 	if headerMediaID != "" {
 		mediaType := strings.ToLower(headerType) // "image", "video", "document"
-		headerParam := map[string]interface{}{
+		headerParam := map[string]any{
 			"type": mediaType,
-			mediaType: map[string]interface{}{
+			mediaType: map[string]any{
 				"id": headerMediaID,
 			},
 		}
-		components = append(components, map[string]interface{}{
+		components = append(components, map[string]any{
 			"type":       "header",
-			"parameters": []map[string]interface{}{headerParam},
+			"parameters": []map[string]any{headerParam},
 		})
 	}
 
@@ -305,7 +305,7 @@ func BuildTemplateComponents(bodyParams map[string]string, headerType string, he
 // templateButtons is the JSONB buttons array from the template, used to determine button type.
 // URL buttons produce: {"type": "button", "sub_type": "url", "index": "0", "parameters": [{"type": "text", "text": "value"}]}
 // COPY_CODE buttons produce: {"type": "button", "sub_type": "copy_code", "index": "0", "parameters": [{"type": "coupon_code", "coupon_code": "value"}]}
-func ButtonURLParamsToComponents(buttonParams map[string]string, templateButtons ...[]interface{}) []map[string]interface{} {
+func ButtonURLParamsToComponents(buttonParams map[string]string, templateButtons ...[]any) []map[string]any {
 	if len(buttonParams) == 0 {
 		return nil
 	}
@@ -314,7 +314,7 @@ func ButtonURLParamsToComponents(buttonParams map[string]string, templateButtons
 	btnTypes := map[string]string{}
 	if len(templateButtons) > 0 {
 		for i, raw := range templateButtons[0] {
-			if btn, ok := raw.(map[string]interface{}); ok {
+			if btn, ok := raw.(map[string]any); ok {
 				if t, ok := btn["type"].(string); ok {
 					btnTypes[fmt.Sprintf("%d", i)] = strings.ToUpper(t)
 				}
@@ -328,24 +328,24 @@ func ButtonURLParamsToComponents(buttonParams map[string]string, templateButtons
 	}
 	sort.Strings(keys)
 
-	components := make([]map[string]interface{}, 0, len(buttonParams))
+	components := make([]map[string]any, 0, len(buttonParams))
 	for _, index := range keys {
 		value := buttonParams[index]
 		if btnTypes[index] == "COPY_CODE" {
-			components = append(components, map[string]interface{}{
+			components = append(components, map[string]any{
 				"type":     "button",
 				"sub_type": "copy_code",
 				"index":    index,
-				"parameters": []map[string]interface{}{
+				"parameters": []map[string]any{
 					{"type": "coupon_code", "coupon_code": value},
 				},
 			})
 		} else {
-			components = append(components, map[string]interface{}{
+			components = append(components, map[string]any{
 				"type":     "button",
 				"sub_type": "url",
 				"index":    index,
-				"parameters": []map[string]interface{}{
+				"parameters": []map[string]any{
 					{"type": "text", "text": value},
 				},
 			})
@@ -380,20 +380,20 @@ func (c *Client) SendFlowMessage(ctx context.Context, account *Account, phoneNum
 		ctaText = ctaText[:20]
 	}
 
-	interactive := map[string]interface{}{
+	interactive := map[string]any{
 		"type": "flow",
-		"body": map[string]interface{}{
+		"body": map[string]any{
 			"text": bodyText,
 		},
-		"action": map[string]interface{}{
+		"action": map[string]any{
 			"name": "flow",
-			"parameters": map[string]interface{}{
+			"parameters": map[string]any{
 				"flow_message_version": "3",
 				"flow_token":           flowToken,
 				"flow_id":              flowID,
 				"flow_cta":             ctaText,
 				"flow_action":          "navigate",
-				"flow_action_payload": map[string]interface{}{
+				"flow_action_payload": map[string]any{
 					"screen": firstScreen,
 				},
 			},
@@ -402,13 +402,13 @@ func (c *Client) SendFlowMessage(ctx context.Context, account *Account, phoneNum
 
 	// Add header if provided
 	if headerText != "" {
-		interactive["header"] = map[string]interface{}{
+		interactive["header"] = map[string]any{
 			"type": "text",
 			"text": headerText,
 		}
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
 		"to":                phoneNumber,
@@ -440,10 +440,10 @@ func (c *Client) SendFlowMessage(ctx context.Context, account *Account, phoneNum
 }
 
 // SendTemplateMessage sends a template message with optional components (header, body, buttons, etc.)
-func (c *Client) SendTemplateMessage(ctx context.Context, account *Account, phoneNumber, templateName, languageCode string, components []map[string]interface{}) (string, error) {
-	template := map[string]interface{}{
+func (c *Client) SendTemplateMessage(ctx context.Context, account *Account, phoneNumber, templateName, languageCode string, components []map[string]any) (string, error) {
+	template := map[string]any{
 		"name": templateName,
-		"language": map[string]interface{}{
+		"language": map[string]any{
 			"code": languageCode,
 		},
 	}
@@ -452,7 +452,7 @@ func (c *Client) SendTemplateMessage(ctx context.Context, account *Account, phon
 		template["components"] = components
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"messaging_product": "whatsapp",
 		"to":                phoneNumber,
 		"type":              "template",

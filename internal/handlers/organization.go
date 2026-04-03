@@ -75,7 +75,7 @@ func (a *App) GetOrganizationSettings(r *fastglue.Request) error {
 		}
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"settings": settings,
 		"name":     org.Name,
 	})
@@ -151,14 +151,14 @@ func (a *App) UpdateOrganizationSettings(r *fastglue.Request) error {
 		a.CallManager.InvalidateOrgCallingSettingsCache(orgID)
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Settings updated successfully",
 	})
 }
 
 // IsCallingEnabledForOrg checks if calling is enabled for an organization.
 // Both the global CallManager and the per-org setting must be active.
-func (a *App) IsCallingEnabledForOrg(orgID interface{}) bool {
+func (a *App) IsCallingEnabledForOrg(orgID any) bool {
 	if a.CallManager == nil {
 		return false
 	}
@@ -184,7 +184,7 @@ func (a *App) requireCallingEnabled(r *fastglue.Request, orgID uuid.UUID) error 
 }
 
 // GetOrgCallingConfig returns org-level calling config values, falling back to global defaults.
-func (a *App) GetOrgCallingConfig(orgID interface{}) (maxDuration, transferTimeout int) {
+func (a *App) GetOrgCallingConfig(orgID any) (maxDuration, transferTimeout int) {
 	maxDuration = callingConfigDefault(a.Config.Calling.MaxCallDuration, 3600)
 	transferTimeout = callingConfigDefault(a.Config.Calling.TransferTimeoutSecs, 60)
 
@@ -213,7 +213,7 @@ func callingConfigDefault(val, fallback int) int {
 
 // MaskContactFields conditionally masks a profile name and phone number
 // if phone masking is enabled for the given organization.
-func (a *App) MaskContactFields(orgID interface{}, profileName, phoneNumber string) (string, string) {
+func (a *App) MaskContactFields(orgID any, profileName, phoneNumber string) (string, string) {
 	if a.ShouldMaskPhoneNumbers(orgID) {
 		return utils.MaskIfPhoneNumber(profileName), utils.MaskPhoneNumber(phoneNumber)
 	}
@@ -221,7 +221,7 @@ func (a *App) MaskContactFields(orgID interface{}, profileName, phoneNumber stri
 }
 
 // ShouldMaskPhoneNumbers checks if phone masking is enabled for the organization
-func (a *App) ShouldMaskPhoneNumbers(orgID interface{}) bool {
+func (a *App) ShouldMaskPhoneNumbers(orgID any) bool {
 	var org models.Organization
 	if err := a.DB.Where("id = ?", orgID).First(&org).Error; err != nil {
 		return false
@@ -453,7 +453,7 @@ func (a *App) ListOrganizationMembers(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to list members", nil, "")
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"members": response,
 		"total":   total,
 		"page":    pg.Page,

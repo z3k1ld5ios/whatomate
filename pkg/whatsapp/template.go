@@ -19,8 +19,8 @@ type TemplateSubmission struct {
 	HeaderContent   string
 	BodyContent     string
 	FooterContent   string
-	Buttons         []interface{}
-	SampleValues    []interface{} // For named: [{param_name: "name", value: "John"}, ...]
+	Buttons         []any
+	SampleValues    []any // For named: [{param_name: "name", value: "John"}, ...]
 }
 
 // SubmitTemplate submits a template to Meta's API (creates new or updates existing)
@@ -35,14 +35,14 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 	}
 
 	// Build components array
-	components := []map[string]interface{}{}
+	components := []map[string]any{}
 
 	// Check if using named parameters
 	isNamedParams := template.ParameterFormat == "named" || hasNamedParams(template.BodyContent)
 
 	// Header component (must come before BODY)
 	if template.HeaderType != "" && template.HeaderType != "NONE" {
-		header := map[string]interface{}{
+		header := map[string]any{
 			"type":   "HEADER",
 			"format": template.HeaderType,
 		}
@@ -54,14 +54,14 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 				if isNamedParams {
 					namedExamples := extractNamedExamplesForComponent(template.SampleValues, "header")
 					if len(namedExamples) > 0 {
-						header["example"] = map[string]interface{}{
+						header["example"] = map[string]any{
 							"header_text_named_params": namedExamples,
 						}
 					}
 				} else {
 					headerExamples := extractExamplesForComponent(template.SampleValues, "header")
 					if len(headerExamples) > 0 {
-						header["example"] = map[string]interface{}{
+						header["example"] = map[string]any{
 							"header_text": headerExamples,
 						}
 					}
@@ -70,7 +70,7 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 		case "IMAGE", "VIDEO", "DOCUMENT":
 			// Media headers require a handle - skip if not provided
 			if template.HeaderContent != "" {
-				header["example"] = map[string]interface{}{
+				header["example"] = map[string]any{
 					"header_handle": []string{template.HeaderContent},
 				}
 			} else {
@@ -84,7 +84,7 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 	}
 
 	// Body component (required)
-	body := map[string]interface{}{
+	body := map[string]any{
 		"type": "BODY",
 		"text": template.BodyContent,
 	}
@@ -93,7 +93,7 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 		if isNamedParams {
 			namedExamples := extractNamedExamplesForComponent(template.SampleValues, "body")
 			if len(namedExamples) > 0 {
-				body["example"] = map[string]interface{}{
+				body["example"] = map[string]any{
 					"body_text_named_params": namedExamples,
 				}
 			} else {
@@ -105,7 +105,7 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 		} else {
 			bodyExamples := extractExamplesForComponent(template.SampleValues, "body")
 			if len(bodyExamples) > 0 {
-				body["example"] = map[string]interface{}{
+				body["example"] = map[string]any{
 					"body_text": [][]string{bodyExamples},
 				}
 			} else {
@@ -120,7 +120,7 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 
 	// Footer component
 	if template.FooterContent != "" {
-		components = append(components, map[string]interface{}{
+		components = append(components, map[string]any{
 			"type": "FOOTER",
 			"text": template.FooterContent,
 		})
@@ -128,9 +128,9 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 
 	// Buttons component
 	if len(template.Buttons) > 0 {
-		buttons := []map[string]interface{}{}
+		buttons := []map[string]any{}
 		for _, btn := range template.Buttons {
-			if btnMap, ok := btn.(map[string]interface{}); ok {
+			if btnMap, ok := btn.(map[string]any); ok {
 				btnType, _ := btnMap["type"].(string)
 				btnType = strings.ToUpper(btnType)
 				btnText, _ := btnMap["text"].(string)
@@ -139,7 +139,7 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 					continue
 				}
 
-				button := map[string]interface{}{}
+				button := map[string]any{}
 
 				switch btnType {
 				case "QUICK_REPLY":
@@ -159,7 +159,7 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 							if ex != "" {
 								button["example"] = []string{ex}
 							}
-						case []interface{}:
+						case []any:
 							if len(ex) > 0 {
 								if s, ok := ex[0].(string); ok && s != "" {
 									button["example"] = []string{s}
@@ -187,7 +187,7 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 						if ex != "" {
 							button["example"] = ex
 						}
-					case []interface{}:
+					case []any:
 						if len(ex) > 0 {
 							if s, ok := ex[0].(string); ok && s != "" {
 								button["example"] = s
@@ -209,7 +209,7 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 			}
 		}
 		if len(buttons) > 0 {
-			components = append(components, map[string]interface{}{
+			components = append(components, map[string]any{
 				"type":    "BUTTONS",
 				"buttons": buttons,
 			})
@@ -217,15 +217,15 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 	}
 
 	// Build request payload
-	var payload map[string]interface{}
+	var payload map[string]any
 	if isUpdate {
 		// Update only sends components (name, language, category are immutable)
-		payload = map[string]interface{}{
+		payload = map[string]any{
 			"components": components,
 		}
 	} else {
 		// Create sends full template
-		payload = map[string]interface{}{
+		payload = map[string]any{
 			"name":       template.Name,
 			"language":   template.Language,
 			"category":   template.Category,
@@ -300,7 +300,7 @@ func (c *Client) DeleteTemplate(ctx context.Context, account *Account, templateN
 }
 
 // extractExamplesForComponent extracts example values for a specific component from sample_values
-func extractExamplesForComponent(sampleValues []interface{}, componentType string) []string {
+func extractExamplesForComponent(sampleValues []any, componentType string) []string {
 	type indexedSample struct {
 		index int
 		value string
@@ -308,7 +308,7 @@ func extractExamplesForComponent(sampleValues []interface{}, componentType strin
 	samples := []indexedSample{}
 
 	for _, sv := range sampleValues {
-		if svMap, ok := sv.(map[string]interface{}); ok {
+		if svMap, ok := sv.(map[string]any); ok {
 			comp, _ := svMap["component"].(string)
 			if comp == componentType {
 				value, _ := svMap["value"].(string)
@@ -324,7 +324,7 @@ func extractExamplesForComponent(sampleValues []interface{}, componentType strin
 			}
 			// Also support legacy format with "values" array
 			if svMap["component"] == componentType {
-				if values, ok := svMap["values"].([]interface{}); ok {
+				if values, ok := svMap["values"].([]any); ok {
 					for i, v := range values {
 						if str, ok := v.(string); ok {
 							samples = append(samples, indexedSample{index: i + 1, value: str})
@@ -388,11 +388,11 @@ func hasNamedParams(content string) bool {
 
 // extractNamedExamplesForComponent extracts named example values for Meta API format
 // Returns: [{"param_name": "name", "example": "John"}, ...]
-func extractNamedExamplesForComponent(sampleValues []interface{}, componentType string) []map[string]string {
+func extractNamedExamplesForComponent(sampleValues []any, componentType string) []map[string]string {
 	results := []map[string]string{}
 
 	for _, sv := range sampleValues {
-		if svMap, ok := sv.(map[string]interface{}); ok {
+		if svMap, ok := sv.(map[string]any); ok {
 			comp, _ := svMap["component"].(string)
 			// Match component type or accept if not specified (for body)
 			if comp == componentType || (comp == "" && componentType == "body") {

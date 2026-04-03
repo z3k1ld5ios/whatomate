@@ -117,7 +117,7 @@ type IVRNode struct {
 	Type     IVRNodeType            `json:"type"`
 	Label    string                 `json:"label"`
 	Position IVRNodePosition        `json:"position"`
-	Config   map[string]interface{} `json:"config"`
+	Config   map[string]any `json:"config"`
 }
 
 // IVREdge connects two nodes in the flow graph.

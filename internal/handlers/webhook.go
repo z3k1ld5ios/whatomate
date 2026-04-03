@@ -356,7 +356,7 @@ func (a *App) WebhookHandler(r *fastglue.Request) error {
 	return r.SendEnvelope(map[string]string{"status": "ok"})
 }
 
-func (a *App) processIncomingMessage(phoneNumberID string, msg interface{}, profileName string) {
+func (a *App) processIncomingMessage(phoneNumberID string, msg any, profileName string) {
 	// Convert msg interface to the message struct
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
@@ -434,7 +434,7 @@ func (a *App) updateMessageStatus(whatsappMsgID, statusValue string, errors []We
 		return
 	}
 
-	updates := map[string]interface{}{}
+	updates := map[string]any{}
 
 	switch newStatus {
 	case models.MessageStatusSent:
@@ -475,7 +475,7 @@ func (a *App) updateMessageStatus(whatsappMsgID, statusValue string, errors []We
 			a.incrementCampaignStat(campaignID, statusValue)
 
 			// Update the BulkMessageRecipient status and timestamps
-			recipientUpdates := map[string]interface{}{
+			recipientUpdates := map[string]any{
 				"status": newStatus,
 			}
 			switch newStatus {

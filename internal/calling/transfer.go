@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strconv"
 	"time"
 
@@ -708,11 +709,7 @@ func (m *Manager) runTransferRotation(session *CallSession, transfer models.Call
 		basePayload["initiating_agent_id"] = transfer.InitiatingAgentID.String()
 	}
 
-	for {
-		// Check if total timeout exceeded or transfer already claimed
-		if totalCtx.Err() != nil {
-			break
-		}
+	for totalCtx.Err() == nil {
 		session.mu.Lock()
 		status := session.TransferStatus
 		session.mu.Unlock()
@@ -750,9 +747,7 @@ func (m *Manager) runTransferRotation(session *CallSession, transfer models.Call
 
 		// Notify this specific agent
 		agentPayload := make(map[string]any)
-		for k, v := range basePayload {
-			agentPayload[k] = v
-		}
+		maps.Copy(agentPayload, basePayload)
 		agentPayload["assigned_to_you"] = true
 		agentPayload["agent_id"] = agentID.String()
 		m.wsHub.BroadcastToUser(orgID, *agentID, websocket.WSMessage{
@@ -835,9 +830,7 @@ func (m *Manager) runTransferRotation(session *CallSession, transfer models.Call
 		Update("agent_id", nil)
 
 	fallbackPayload := make(map[string]any)
-	for k, v := range basePayload {
-		fallbackPayload[k] = v
-	}
+	maps.Copy(fallbackPayload, basePayload)
 	fallbackPayload["broadcast_fallback"] = true
 	m.wsHub.BroadcastToUsers(orgID, remaining, websocket.WSMessage{
 		Type:    websocket.TypeCallTransferWaiting,
@@ -1023,7 +1016,7 @@ func (m *Manager) findSessionByTransferID(transferID uuid.UUID) *CallSession {
 }
 
 // parseTransferCallbacks extracts HTTP callback configs from a transfer IVR node's config map.
-func parseTransferCallbacks(config map[string]interface{}) *TransferCallbacks {
+func parseTransferCallbacks(config map[string]any) *TransferCallbacks {
 	cb := &TransferCallbacks{}
 	cb.OnWaiting = parseOneCallback(config, "on_waiting")
 	cb.OnConnect = parseOneCallback(config, "on_connect")
@@ -1033,8 +1026,8 @@ func parseTransferCallbacks(config map[string]interface{}) *TransferCallbacks {
 	return cb
 }
 
-func parseOneCallback(config map[string]interface{}, key string) *TransferHTTPCallback {
-	raw, ok := config[key].(map[string]interface{})
+func parseOneCallback(config map[string]any, key string) *TransferHTTPCallback {
+	raw, ok := config[key].(map[string]any)
 	if !ok {
 		return nil
 	}
@@ -1046,7 +1039,7 @@ func parseOneCallback(config map[string]interface{}, key string) *TransferHTTPCa
 	bodyTemplate, _ := raw["body_template"].(string)
 
 	headers := make(map[string]string)
-	if hdrs, ok := raw["headers"].(map[string]interface{}); ok {
+	if hdrs, ok := raw["headers"].(map[string]any); ok {
 		for k, v := range hdrs {
 			if s, ok := v.(string); ok {
 				headers[k] = s

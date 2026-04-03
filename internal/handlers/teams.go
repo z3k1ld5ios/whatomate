@@ -101,7 +101,7 @@ func (a *App) ListTeams(r *fastglue.Request) error {
 		response[i] = buildTeamResponse(&t, false)
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"teams": response,
 		"total": total,
 		"page":  pg.Page,
@@ -143,7 +143,7 @@ func (a *App) GetTeam(r *fastglue.Request) error {
 		}
 	}
 
-	return r.SendEnvelope(map[string]interface{}{"team": buildTeamResponse(&team, true)})
+	return r.SendEnvelope(map[string]any{"team": buildTeamResponse(&team, true)})
 }
 
 // CreateTeam creates a new team
@@ -197,7 +197,7 @@ func (a *App) CreateTeam(r *fastglue.Request) error {
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
 		"team", team.ID, models.AuditActionCreated, nil, &team)
 
-	return r.SendEnvelope(map[string]interface{}{"team": buildTeamResponse(&team, false)})
+	return r.SendEnvelope(map[string]any{"team": buildTeamResponse(&team, false)})
 }
 
 // UpdateTeam updates a team
@@ -270,7 +270,7 @@ func (a *App) UpdateTeam(r *fastglue.Request) error {
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
 		"team", team.ID, models.AuditActionUpdated, &oldTeam, &team)
 
-	return r.SendEnvelope(map[string]interface{}{"team": buildTeamResponse(&team, false)})
+	return r.SendEnvelope(map[string]any{"team": buildTeamResponse(&team, false)})
 }
 
 // DeleteTeam deletes a team
@@ -367,7 +367,7 @@ func (a *App) ListTeamMembers(r *fastglue.Request) error {
 		}
 	}
 
-	return r.SendEnvelope(map[string]interface{}{"members": members})
+	return r.SendEnvelope(map[string]any{"members": members})
 }
 
 // AddTeamMember adds a member to a team
@@ -456,7 +456,7 @@ func (a *App) AddTeamMember(r *fastglue.Request) error {
 		a.Assigner.InvalidateTeamCache(teamID)
 	}
 
-	return r.SendEnvelope(map[string]interface{}{"member": TeamMemberResponse{
+	return r.SendEnvelope(map[string]any{"member": TeamMemberResponse{
 		ID:          member.ID,
 		UserID:      member.UserID,
 		FullName:    user.FullName,

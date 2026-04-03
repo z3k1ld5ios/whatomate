@@ -81,8 +81,8 @@ func (b *AudioBridge) forward(src *webrtc.TrackRemote, dst *webrtc.TrackLocalSta
 			pkt := &rtp.Packet{}
 			if err := pkt.Unmarshal(buf[:n]); err == nil {
 				if trackSeq {
-					b.lastCallerSeq = pkt.Header.SequenceNumber
-					b.lastCallerTS = pkt.Header.Timestamp
+					b.lastCallerSeq = pkt.SequenceNumber
+					b.lastCallerTS = pkt.Timestamp
 				}
 				if rec != nil && len(pkt.Payload) > 0 {
 					rec.WritePacket(pkt.Payload)

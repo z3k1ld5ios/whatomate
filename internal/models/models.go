@@ -13,7 +13,7 @@ import (
 )
 
 // JSONB is a custom type for PostgreSQL JSONB columns
-type JSONB map[string]interface{}
+type JSONB map[string]any
 
 func (j JSONB) Value() (driver.Value, error) {
 	if j == nil {
@@ -22,7 +22,7 @@ func (j JSONB) Value() (driver.Value, error) {
 	return json.Marshal(j)
 }
 
-func (j *JSONB) Scan(value interface{}) error {
+func (j *JSONB) Scan(value any) error {
 	if value == nil {
 		*j = nil
 		return nil
@@ -35,7 +35,7 @@ func (j *JSONB) Scan(value interface{}) error {
 }
 
 // JSONBArray is a custom type for JSONB arrays
-type JSONBArray []interface{}
+type JSONBArray []any
 
 func (j JSONBArray) Value() (driver.Value, error) {
 	if j == nil {
@@ -44,7 +44,7 @@ func (j JSONBArray) Value() (driver.Value, error) {
 	return json.Marshal(j)
 }
 
-func (j *JSONBArray) Scan(value interface{}) error {
+func (j *JSONBArray) Scan(value any) error {
 	if value == nil {
 		*j = nil
 		return nil
@@ -66,7 +66,7 @@ func (s StringArray) Value() (driver.Value, error) {
 	return json.Marshal(s)
 }
 
-func (s *StringArray) Scan(value interface{}) error {
+func (s *StringArray) Scan(value any) error {
 	if value == nil {
 		*s = nil
 		return nil

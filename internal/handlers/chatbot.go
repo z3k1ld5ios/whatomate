@@ -18,12 +18,12 @@ import (
 type ChatbotSettingsResponse struct {
 	Enabled               bool                     `json:"enabled"`
 	GreetingMessage       string                   `json:"greeting_message"`
-	GreetingButtons       []map[string]interface{} `json:"greeting_buttons"`
+	GreetingButtons       []map[string]any `json:"greeting_buttons"`
 	FallbackMessage       string                   `json:"fallback_message"`
-	FallbackButtons       []map[string]interface{} `json:"fallback_buttons"`
+	FallbackButtons       []map[string]any `json:"fallback_buttons"`
 	SessionTimeoutMinutes int                      `json:"session_timeout_minutes"`
 	BusinessHoursEnabled       bool                     `json:"business_hours_enabled"`
-	BusinessHours              []map[string]interface{} `json:"business_hours"`
+	BusinessHours              []map[string]any `json:"business_hours"`
 	OutOfHoursMessage          string                   `json:"out_of_hours_message"`
 	AllowAutomatedOutsideHours bool                     `json:"allow_automated_outside_hours"`
 	AllowAgentQueuePickup        bool                     `json:"allow_agent_queue_pickup"`
@@ -130,29 +130,29 @@ func (a *App) GetChatbotSettings(r *fastglue.Request) error {
 	stats := a.getChatbotStats(orgID)
 
 	// Convert button arrays
-	greetingButtons := make([]map[string]interface{}, 0)
+	greetingButtons := make([]map[string]any, 0)
 	if settings.GreetingButtons != nil {
 		for _, btn := range settings.GreetingButtons {
-			if btnMap, ok := btn.(map[string]interface{}); ok {
+			if btnMap, ok := btn.(map[string]any); ok {
 				greetingButtons = append(greetingButtons, btnMap)
 			}
 		}
 	}
 
-	fallbackButtons := make([]map[string]interface{}, 0)
+	fallbackButtons := make([]map[string]any, 0)
 	if settings.FallbackButtons != nil {
 		for _, btn := range settings.FallbackButtons {
-			if btnMap, ok := btn.(map[string]interface{}); ok {
+			if btnMap, ok := btn.(map[string]any); ok {
 				fallbackButtons = append(fallbackButtons, btnMap)
 			}
 		}
 	}
 
 	// Convert business hours array
-	businessHours := make([]map[string]interface{}, 0)
+	businessHours := make([]map[string]any, 0)
 	if settings.BusinessHours.Hours != nil {
 		for _, bh := range settings.BusinessHours.Hours {
-			if bhMap, ok := bh.(map[string]interface{}); ok {
+			if bhMap, ok := bh.(map[string]any); ok {
 				businessHours = append(businessHours, bhMap)
 			}
 		}
@@ -197,7 +197,7 @@ func (a *App) GetChatbotSettings(r *fastglue.Request) error {
 		ClientAutoCloseMessage: settings.ClientInactivity.AutoCloseMessage,
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"settings": settingsResp,
 		"stats":    stats,
 	})
@@ -213,12 +213,12 @@ func (a *App) UpdateChatbotSettings(r *fastglue.Request) error {
 	var req struct {
 		Enabled                    *bool                      `json:"enabled"`
 		GreetingMessage            *string                    `json:"greeting_message"`
-		GreetingButtons            *[]map[string]interface{}  `json:"greeting_buttons"`
+		GreetingButtons            *[]map[string]any  `json:"greeting_buttons"`
 		FallbackMessage            *string                    `json:"fallback_message"`
-		FallbackButtons            *[]map[string]interface{}  `json:"fallback_buttons"`
+		FallbackButtons            *[]map[string]any  `json:"fallback_buttons"`
 		SessionTimeoutMinutes      *int                       `json:"session_timeout_minutes"`
 		BusinessHoursEnabled       *bool                      `json:"business_hours_enabled"`
-		BusinessHours              *[]map[string]interface{}  `json:"business_hours"`
+		BusinessHours              *[]map[string]any  `json:"business_hours"`
 		OutOfHoursMessage          *string                    `json:"out_of_hours_message"`
 		AllowAutomatedOutsideHours *bool                      `json:"allow_automated_outside_hours"`
 		AllowAgentQueuePickup        *bool                      `json:"allow_agent_queue_pickup"`
@@ -272,7 +272,7 @@ func (a *App) UpdateChatbotSettings(r *fastglue.Request) error {
 		settings.DefaultResponse = *req.GreetingMessage
 	}
 	if req.GreetingButtons != nil {
-		buttons := make([]interface{}, len(*req.GreetingButtons))
+		buttons := make([]any, len(*req.GreetingButtons))
 		for i, btn := range *req.GreetingButtons {
 			buttons[i] = btn
 		}
@@ -282,7 +282,7 @@ func (a *App) UpdateChatbotSettings(r *fastglue.Request) error {
 		settings.FallbackMessage = *req.FallbackMessage
 	}
 	if req.FallbackButtons != nil {
-		buttons := make([]interface{}, len(*req.FallbackButtons))
+		buttons := make([]any, len(*req.FallbackButtons))
 		for i, btn := range *req.FallbackButtons {
 			buttons[i] = btn
 		}
@@ -296,7 +296,7 @@ func (a *App) UpdateChatbotSettings(r *fastglue.Request) error {
 		settings.BusinessHours.Enabled = *req.BusinessHoursEnabled
 	}
 	if req.BusinessHours != nil {
-		hours := make([]interface{}, len(*req.BusinessHours))
+		hours := make([]any, len(*req.BusinessHours))
 		for i, bh := range *req.BusinessHours {
 			hours[i] = bh
 		}
@@ -393,7 +393,7 @@ func (a *App) UpdateChatbotSettings(r *fastglue.Request) error {
 	// row we explicitly set any default:true bool columns that were requested
 	// as false.
 	if isNew {
-		zeroOverrides := map[string]interface{}{}
+		zeroOverrides := map[string]any{}
 		if req.AllowAutomatedOutsideHours != nil && !*req.AllowAutomatedOutsideHours {
 			zeroOverrides["allow_automated_outside_hours"] = false
 		}
@@ -415,7 +415,7 @@ func (a *App) UpdateChatbotSettings(r *fastglue.Request) error {
 	a.InvalidateChatbotSettingsCache(orgID)
 	a.InvalidateSLASettingsCache() // SLA settings are part of chatbot settings
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Settings updated successfully",
 	})
 }
@@ -493,7 +493,7 @@ func (a *App) CreateKeywordRule(r *fastglue.Request) error {
 		Keywords        []string               `json:"keywords"`
 		MatchType       models.MatchType       `json:"match_type"`
 		ResponseType    models.ResponseType    `json:"response_type"`
-		ResponseContent map[string]interface{} `json:"response_content"`
+		ResponseContent map[string]any `json:"response_content"`
 		Priority        int                    `json:"priority"`
 		Enabled         bool                   `json:"enabled"`
 	}
@@ -541,7 +541,7 @@ func (a *App) CreateKeywordRule(r *fastglue.Request) error {
 
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "keyword_rule", rule.ID, models.AuditActionCreated, nil, &rule)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"id":      rule.ID.String(),
 		"message": "Keyword rule created successfully",
 	})
@@ -614,7 +614,7 @@ func (a *App) UpdateKeywordRule(r *fastglue.Request) error {
 		Keywords        []string                `json:"keywords"`
 		MatchType       *models.MatchType       `json:"match_type"`
 		ResponseType    *models.ResponseType    `json:"response_type"`
-		ResponseContent map[string]interface{}  `json:"response_content"`
+		ResponseContent map[string]any  `json:"response_content"`
 		Priority        *int                    `json:"priority"`
 		Enabled         *bool                   `json:"enabled"`
 	}
@@ -657,7 +657,7 @@ func (a *App) UpdateKeywordRule(r *fastglue.Request) error {
 
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "keyword_rule", rule.ID, models.AuditActionUpdated, &oldRule, rule)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Keyword rule updated successfully",
 	})
 }
@@ -690,7 +690,7 @@ func (a *App) DeleteKeywordRule(r *fastglue.Request) error {
 
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "keyword_rule", id, models.AuditActionDeleted, &rule, nil)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Keyword rule deleted successfully",
 	})
 }
@@ -755,15 +755,15 @@ type FlowStepRequest struct {
 	Message         string                   `json:"message"`
 	MessageType     models.FlowStepType      `json:"message_type"`
 	InputType       models.InputType         `json:"input_type"`
-	InputConfig     map[string]interface{}   `json:"input_config"`
-	ApiConfig       map[string]interface{}   `json:"api_config"`
-	Buttons         []map[string]interface{} `json:"buttons"`
-	TransferConfig  map[string]interface{}   `json:"transfer_config"`
+	InputConfig     map[string]any   `json:"input_config"`
+	ApiConfig       map[string]any   `json:"api_config"`
+	Buttons         []map[string]any `json:"buttons"`
+	TransferConfig  map[string]any   `json:"transfer_config"`
 	ValidationRegex string                   `json:"validation_regex"`
 	ValidationError string                   `json:"validation_error"`
 	StoreAs         string                   `json:"store_as"`
 	NextStep        string                   `json:"next_step"`
-	ConditionalNext map[string]interface{}   `json:"conditional_next"`
+	ConditionalNext map[string]any   `json:"conditional_next"`
 	SkipCondition   string                   `json:"skip_condition"`
 	RetryOnInvalid  bool                     `json:"retry_on_invalid"`
 	MaxRetries      int                      `json:"max_retries"`
@@ -787,9 +787,9 @@ func (a *App) CreateChatbotFlow(r *fastglue.Request) error {
 		InitialMessage    string                 `json:"initial_message"`
 		CompletionMessage string                 `json:"completion_message"`
 		OnCompleteAction  string                 `json:"on_complete_action"`
-		CompletionConfig  map[string]interface{} `json:"completion_config"`
-		PanelConfig       map[string]interface{} `json:"panel_config"`
-		CanvasLayout      map[string]interface{} `json:"canvas_layout"`
+		CompletionConfig  map[string]any `json:"completion_config"`
+		PanelConfig       map[string]any `json:"panel_config"`
+		CanvasLayout      map[string]any `json:"canvas_layout"`
 		Enabled           bool                   `json:"enabled"`
 		Steps             []FlowStepRequest      `json:"steps"`
 	}
@@ -879,7 +879,7 @@ func (a *App) CreateChatbotFlow(r *fastglue.Request) error {
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
 		"chatbot_flow", flow.ID, models.AuditActionCreated, nil, &flow)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"id":      flow.ID.String(),
 		"message": "Flow created successfully",
 	})
@@ -944,9 +944,9 @@ func (a *App) UpdateChatbotFlow(r *fastglue.Request) error {
 		InitialMessage    *string                `json:"initial_message"`
 		CompletionMessage *string                `json:"completion_message"`
 		OnCompleteAction  *string                `json:"on_complete_action"`
-		CompletionConfig  map[string]interface{} `json:"completion_config"`
-		PanelConfig       map[string]interface{} `json:"panel_config"`
-		CanvasLayout      map[string]interface{} `json:"canvas_layout"`
+		CompletionConfig  map[string]any `json:"completion_config"`
+		PanelConfig       map[string]any `json:"panel_config"`
+		CanvasLayout      map[string]any `json:"canvas_layout"`
 		Enabled           *bool                  `json:"enabled"`
 		Steps             []FlowStepRequest      `json:"steps"`
 	}
@@ -1138,7 +1138,7 @@ func (a *App) UpdateChatbotFlow(r *fastglue.Request) error {
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
 		"chatbot_flow", flow.ID, models.AuditActionUpdated, &oldFlow, flow, extraChanges...)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Flow updated successfully",
 	})
 }
@@ -1193,7 +1193,7 @@ func (a *App) DeleteChatbotFlow(r *fastglue.Request) error {
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
 		"chatbot_flow", id, models.AuditActionDeleted, &flowForAudit, nil)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Flow deleted successfully",
 	})
 }
@@ -1307,7 +1307,7 @@ func (a *App) CreateAIContext(r *fastglue.Request) error {
 
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "ai_context", ctx.ID, models.AuditActionCreated, nil, &ctx)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"id":      ctx.ID.String(),
 		"message": "AI context created successfully",
 	})
@@ -1417,7 +1417,7 @@ func (a *App) UpdateAIContext(r *fastglue.Request) error {
 
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "ai_context", aiCtx.ID, models.AuditActionUpdated, &oldCtx, aiCtx)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "AI context updated successfully",
 	})
 }
@@ -1450,7 +1450,7 @@ func (a *App) DeleteAIContext(r *fastglue.Request) error {
 
 	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "ai_context", id, models.AuditActionDeleted, &aiCtx, nil)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "AI context deleted successfully",
 	})
 }
@@ -1478,7 +1478,7 @@ func (a *App) ListChatbotSessions(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to fetch sessions", nil, "")
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"sessions": sessions,
 	})
 }

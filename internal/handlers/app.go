@@ -157,7 +157,7 @@ func (a *App) StartCampaignStatsSubscriber() error {
 		// Broadcast to organization via WebSocket
 		a.WSHub.BroadcastToOrg(update.OrganizationID, websocket.WSMessage{
 			Type: websocket.TypeCampaignStatsUpdate,
-			Payload: map[string]interface{}{
+			Payload: map[string]any{
 				"campaign_id":     update.CampaignID,
 				"status":          update.Status,
 				"sent_count":      update.SentCount,
@@ -230,7 +230,7 @@ func (a *App) requirePermission(r *fastglue.Request, userID uuid.UUID, resource,
 
 // decodeRequest decodes a JSON request body into the provided struct.
 // Returns nil on success, otherwise sends a 400 error envelope and returns errEnvelopeSent.
-func (a *App) decodeRequest(r *fastglue.Request, v interface{}) error {
+func (a *App) decodeRequest(r *fastglue.Request, v any) error {
 	if err := r.Decode(v, "json"); err != nil {
 		_ = r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid request body", nil, "")
 		return errEnvelopeSent

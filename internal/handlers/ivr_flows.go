@@ -795,7 +795,7 @@ func (a *App) generateIVRAudio(menu models.JSONB) error {
 	}
 
 	for i, nodeRaw := range nodesSlice {
-		nodeMap, ok := nodeRaw.(map[string]interface{})
+		nodeMap, ok := nodeRaw.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -803,7 +803,7 @@ func (a *App) generateIVRAudio(menu models.JSONB) error {
 		if !ok {
 			continue
 		}
-		config, ok := configRaw.(map[string]interface{})
+		config, ok := configRaw.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -837,7 +837,7 @@ func menuHasGreetingText(menu models.JSONB) bool {
 	}
 
 	for _, nodeRaw := range nodesSlice {
-		nodeMap, ok := nodeRaw.(map[string]interface{})
+		nodeMap, ok := nodeRaw.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -845,7 +845,7 @@ func menuHasGreetingText(menu models.JSONB) bool {
 		if !ok {
 			continue
 		}
-		config, ok := configRaw.(map[string]interface{})
+		config, ok := configRaw.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -856,9 +856,9 @@ func menuHasGreetingText(menu models.JSONB) bool {
 	return false
 }
 
-// toSlice converts an interface{} to []interface{}, handling JSON re-marshal if needed.
-func toSlice(v interface{}) ([]interface{}, bool) {
-	if s, ok := v.([]interface{}); ok {
+// toSlice converts an any to []any, handling JSON re-marshal if needed.
+func toSlice(v any) ([]any, bool) {
+	if s, ok := v.([]any); ok {
 		return s, true
 	}
 	// Handle case where JSONB was deserialized differently
@@ -866,7 +866,7 @@ func toSlice(v interface{}) ([]interface{}, bool) {
 	if err != nil {
 		return nil, false
 	}
-	var s []interface{}
+	var s []any
 	if json.Unmarshal(b, &s) == nil {
 		return s, true
 	}
@@ -912,7 +912,7 @@ func validateFlowGraph(menu models.JSONB) error {
 	terminalTypes := map[string]bool{"goto_flow": true, "hangup": true}
 
 	for _, nodeRaw := range nodesSlice {
-		nodeMap, ok := nodeRaw.(map[string]interface{})
+		nodeMap, ok := nodeRaw.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -943,7 +943,7 @@ func validateFlowGraph(menu models.JSONB) error {
 			return fmt.Errorf("edges must be an array")
 		}
 		for _, edgeRaw := range edgesSlice {
-			edgeMap, ok := edgeRaw.(map[string]interface{})
+			edgeMap, ok := edgeRaw.(map[string]any)
 			if !ok {
 				continue
 			}

@@ -160,7 +160,7 @@ func (w *Worker) HandleRecipientJob(ctx context.Context, job *queue.RecipientJob
 
 // updateRecipientStatus updates the recipient's status in the database
 func (w *Worker) updateRecipientStatus(recipientID uuid.UUID, status models.MessageStatus, waMessageID, errorMsg string) {
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"status":               status,
 		"whats_app_message_id": waMessageID,
 	}
@@ -219,7 +219,7 @@ func (w *Worker) checkCampaignCompletion(ctx context.Context, campaignID, organi
 		}
 
 		now := time.Now()
-		w.DB.Model(&campaign).Updates(map[string]interface{}{
+		w.DB.Model(&campaign).Updates(map[string]any{
 			"status":       models.CampaignStatusCompleted,
 			"completed_at": now,
 		})

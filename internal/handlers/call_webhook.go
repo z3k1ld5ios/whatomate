@@ -12,7 +12,7 @@ import (
 
 // processCallWebhook handles a call webhook event for both incoming and outgoing calls.
 // It creates/updates the CallLog and delegates to the CallManager for WebRTC handling.
-func (a *App) processCallWebhook(phoneNumberID string, call interface{}) {
+func (a *App) processCallWebhook(phoneNumberID string, call any) {
 	// The webhook handler passes an anonymous struct. Convert via JSON round-trip.
 	type callEvent struct {
 		ID        string `json:"id"`

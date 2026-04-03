@@ -59,7 +59,7 @@ type CampaignResponse struct {
 type RecipientRequest struct {
 	PhoneNumber    string                 `json:"phone_number" validate:"required"`
 	RecipientName  string                 `json:"recipient_name"`
-	TemplateParams map[string]interface{} `json:"template_params"`
+	TemplateParams map[string]any `json:"template_params"`
 }
 
 // ListCampaigns implements campaign listing
@@ -136,7 +136,7 @@ func (a *App) ListCampaigns(r *fastglue.Request) error {
 		}
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"campaigns": response,
 		"total":     total,
 		"page":      pg.Page,
@@ -297,7 +297,7 @@ func (a *App) UpdateCampaign(r *fastglue.Request) error {
 	}
 
 	// Update fields
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"name":           req.Name,
 		"scheduled_at":   req.ScheduledAt,
 		"updated_by_id":  userID,
@@ -395,7 +395,7 @@ func (a *App) DeleteCampaign(r *fastglue.Request) error {
 
 	a.Log.Info("Campaign deleted", "campaign_id", id)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Campaign deleted successfully",
 	})
 }
@@ -443,7 +443,7 @@ func (a *App) StartCampaign(r *fastglue.Request) error {
 
 	// Update status to processing
 	now := time.Now()
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"status":     models.CampaignStatusProcessing,
 		"started_at": now,
 	}
@@ -477,7 +477,7 @@ func (a *App) StartCampaign(r *fastglue.Request) error {
 
 	a.Log.Info("Recipients enqueued for processing", "campaign_id", id, "count", len(jobs))
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Campaign started",
 		"status":  models.CampaignStatusProcessing,
 	})
@@ -511,7 +511,7 @@ func (a *App) PauseCampaign(r *fastglue.Request) error {
 
 	a.Log.Info("Campaign paused", "campaign_id", id)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Campaign paused",
 		"status":  models.CampaignStatusPaused,
 	})
@@ -545,7 +545,7 @@ func (a *App) CancelCampaign(r *fastglue.Request) error {
 
 	a.Log.Info("Campaign cancelled", "campaign_id", id)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Campaign cancelled",
 		"status":  models.CampaignStatusCancelled,
 	})
@@ -587,7 +587,7 @@ func (a *App) RetryFailed(r *fastglue.Request) error {
 	// Reset failed recipients to pending
 	if err := a.DB.Model(&models.BulkMessageRecipient{}).
 		Where("campaign_id = ? AND status = ?", id, models.MessageStatusFailed).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"status":        models.MessageStatusPending,
 			"error_message": "",
 		}).Error; err != nil {
@@ -598,7 +598,7 @@ func (a *App) RetryFailed(r *fastglue.Request) error {
 	// Reset failed messages in messages table to pending
 	if err := a.DB.Model(&models.Message{}).
 		Where("metadata->>'campaign_id' = ? AND status = ?", id.String(), models.MessageStatusFailed).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"status":        models.MessageStatusPending,
 			"error_message": "",
 		}).Error; err != nil {
@@ -636,7 +636,7 @@ func (a *App) RetryFailed(r *fastglue.Request) error {
 
 	a.Log.Info("Failed recipients enqueued for retry", "campaign_id", id, "count", len(jobs))
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message":     "Retrying failed messages",
 		"retry_count": len(failedRecipients),
 		"status":      models.CampaignStatusProcessing,
@@ -708,7 +708,7 @@ func (a *App) ImportRecipients(r *fastglue.Request) error {
 			"new_value": fmt.Sprintf("%d recipients added", len(req.Recipients)),
 		})
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message":          "Recipients added successfully",
 		"added_count":      len(req.Recipients),
 		"total_recipients": totalCount,
@@ -746,7 +746,7 @@ func (a *App) GetCampaignRecipients(r *fastglue.Request) error {
 		}
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"recipients": recipients,
 		"total":      len(recipients),
 	})
@@ -805,7 +805,7 @@ func (a *App) DeleteCampaignRecipient(r *fastglue.Request) error {
 			"new_value": nil,
 		})
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": "Recipient deleted successfully",
 	})
 }
@@ -910,7 +910,7 @@ func (a *App) UploadCampaignMedia(r *fastglue.Request) error {
 	}
 
 	// Update campaign with media ID, filename, mime type, and local path
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"header_media_id":         mediaID,
 		"header_media_filename":   sanitizeFilename(fileHeader.Filename),
 		"header_media_mime_type":  mimeType,
@@ -923,7 +923,7 @@ func (a *App) UploadCampaignMedia(r *fastglue.Request) error {
 
 	a.Log.Info("Campaign media uploaded", "campaign_id", campaignUUID, "media_id", mediaID, "filename", fileHeader.Filename, "local_path", localPath)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"media_id":   mediaID,
 		"filename":   fileHeader.Filename,
 		"mime_type":  mimeType,
@@ -1093,7 +1093,7 @@ func (a *App) incrementCampaignStat(campaignID string, status string) {
 	if a.WSHub != nil && result.RowsAffected > 0 {
 		a.WSHub.BroadcastToOrg(campaign.OrganizationID, websocket.WSMessage{
 			Type: websocket.TypeCampaignStatsUpdate,
-			Payload: map[string]interface{}{
+			Payload: map[string]any{
 				"campaign_id":     campaignID,
 				"status":          campaign.Status,
 				"sent_count":      campaign.SentCount,
@@ -1127,7 +1127,7 @@ func (a *App) recalculateCampaignStats(campaignID uuid.UUID) {
 	}
 
 	if err := a.DB.Model(&models.BulkMessageCampaign{}).Where("id = ?", campaignID).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"sent_count":      stats.Sent,
 			"delivered_count": stats.Delivered,
 			"read_count":      stats.Read,

@@ -24,8 +24,8 @@ type TemplateRequest struct {
 	HeaderContent   string        `json:"header_content"`
 	BodyContent     string        `json:"body_content" validate:"required"`
 	FooterContent   string        `json:"footer_content"`
-	Buttons         []interface{} `json:"buttons"`
-	SampleValues    []interface{} `json:"sample_values"`
+	Buttons         []any `json:"buttons"`
+	SampleValues    []any `json:"sample_values"`
 }
 
 // TemplateResponse represents the response for a template
@@ -42,8 +42,8 @@ type TemplateResponse struct {
 	HeaderContent   string        `json:"header_content"`
 	BodyContent     string        `json:"body_content"`
 	FooterContent   string        `json:"footer_content"`
-	Buttons         []interface{} `json:"buttons"`
-	SampleValues    []interface{} `json:"sample_values"`
+	Buttons         []any `json:"buttons"`
+	SampleValues    []any `json:"sample_values"`
 	CreatedByName   string        `json:"created_by_name,omitempty"`
 	UpdatedByName   string        `json:"updated_by_name,omitempty"`
 	CreatedAt       string        `json:"created_at"`
@@ -370,7 +370,7 @@ func (a *App) SubmitTemplate(r *fastglue.Request) error {
 		map[string]any{"field": "published", "old_value": oldStatus, "new_value": "PENDING"},
 	)
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message":          message,
 		"meta_template_id": metaTemplateID,
 		"status":           template.Status,
@@ -459,8 +459,8 @@ func (a *App) SyncTemplates(r *fastglue.Request) error {
 			case "FOOTER":
 				template.FooterContent = comp.Text
 			case "BUTTONS":
-				// Convert []TemplateButton to []interface{}
-				buttons := make([]interface{}, len(comp.Buttons))
+				// Convert []TemplateButton to []any
+				buttons := make([]any, len(comp.Buttons))
 				for i, btn := range comp.Buttons {
 					buttons[i] = btn
 				}
@@ -474,7 +474,7 @@ func (a *App) SyncTemplates(r *fastglue.Request) error {
 			orgID, account.Name, template.Name, template.Language).First(&existing).Error; err == nil {
 			// Update existing and restore if soft-deleted (explicitly set deleted_at to NULL)
 			template.ID = existing.ID
-			a.DB.Unscoped().Model(&template).Updates(map[string]interface{}{
+			a.DB.Unscoped().Model(&template).Updates(map[string]any{
 				"meta_template_id": template.MetaTemplateID,
 				"display_name":     template.DisplayName,
 				"category":         template.Category,
@@ -493,7 +493,7 @@ func (a *App) SyncTemplates(r *fastglue.Request) error {
 		synced++
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"message": fmt.Sprintf("Synced %d templates", synced),
 		"count":   synced,
 	})
@@ -553,18 +553,18 @@ func normalizeTemplateName(name string) string {
 	return result.String()
 }
 
-func convertToJSONBArray(arr []interface{}) models.JSONBArray {
+func convertToJSONBArray(arr []any) models.JSONBArray {
 	if arr == nil {
 		return models.JSONBArray{}
 	}
 	return models.JSONBArray(arr)
 }
 
-func convertFromJSONBArray(arr models.JSONBArray) []interface{} {
+func convertFromJSONBArray(arr models.JSONBArray) []any {
 	if arr == nil {
-		return []interface{}{}
+		return []any{}
 	}
-	return []interface{}(arr)
+	return []any(arr)
 }
 
 // UploadTemplateMedia uploads a media file for use as template header sample
@@ -645,7 +645,7 @@ func (a *App) UploadTemplateMedia(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadGateway, "Failed to upload media to Meta", nil, "")
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"handle":    handle,
 		"filename":  fileHeader.Filename,
 		"mime_type": mimeType,

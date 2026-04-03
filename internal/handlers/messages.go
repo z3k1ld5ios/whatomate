@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -311,17 +312,15 @@ func (a *App) buildInteractiveData(req OutgoingMessageRequest) models.JSONB {
 	// Template buttons: stored as JSONBArray on Template.Buttons
 	// Resolve dynamic URL params (e.g., {{1}}) before storing
 	if req.Template != nil && len(req.Template.Buttons) > 0 {
-		buttons := make([]interface{}, len(req.Template.Buttons))
+		buttons := make([]any, len(req.Template.Buttons))
 		for i, btn := range req.Template.Buttons {
-			btnMap, ok := btn.(map[string]interface{})
+			btnMap, ok := btn.(map[string]any)
 			if !ok {
 				buttons[i] = btn
 				continue
 			}
-			resolved := make(map[string]interface{})
-			for k, v := range btnMap {
-				resolved[k] = v
-			}
+			resolved := make(map[string]any, len(btnMap))
+			maps.Copy(resolved, btnMap)
 			if resolved["type"] == "URL" {
 				if urlStr, ok := resolved["url"].(string); ok {
 					idx := fmt.Sprintf("%d", i)
@@ -347,7 +346,7 @@ func (a *App) buildInteractiveData(req OutgoingMessageRequest) models.JSONB {
 			"url":         req.URL,
 		}
 	case "list":
-		rows := make([]interface{}, len(req.Buttons))
+		rows := make([]any, len(req.Buttons))
 		for i, btn := range req.Buttons {
 			rows[i] = map[string]string{"id": btn.ID, "title": btn.Title}
 		}
@@ -357,7 +356,7 @@ func (a *App) buildInteractiveData(req OutgoingMessageRequest) models.JSONB {
 			"rows": rows,
 		}
 	default: // "button"
-		buttons := make([]interface{}, len(req.Buttons))
+		buttons := make([]any, len(req.Buttons))
 		for i, btn := range req.Buttons {
 			buttons[i] = map[string]string{"id": btn.ID, "title": btn.Title}
 		}
@@ -635,7 +634,7 @@ func (a *App) SendTemplateMessage(r *fastglue.Request) error {
 			if err != nil {
 				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Failed to read header file", nil, "")
 			}
-			defer f.Close()
+			defer f.Close() //nolint:errcheck
 			headerFileData, err = io.ReadAll(f)
 			if err != nil {
 				a.Log.Error("Failed to read header file", "error", err)
@@ -767,7 +766,7 @@ func (a *App) SendTemplateMessage(r *fastglue.Request) error {
 			if err != nil {
 				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Failed to download header media from URL", nil, "")
 			}
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 			if resp.StatusCode != http.StatusOK {
 				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, fmt.Sprintf("Header media URL returned status %d", resp.StatusCode), nil, "")
 			}
