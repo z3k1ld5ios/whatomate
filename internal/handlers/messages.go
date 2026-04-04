@@ -188,6 +188,10 @@ func (a *App) SendOutgoingMessage(ctx context.Context, req OutgoingMessageReques
 				return "", fmt.Errorf("template is required for template messages")
 			}
 			components := whatsapp.BuildTemplateComponents(req.BodyParams, req.Template.HeaderType, req.HeaderMediaID)
+			// Add Flow button components (Meta requires sub_type "flow" with flow_token)
+			flowComponents := whatsapp.FlowButtonComponents(req.Template.Buttons)
+			components = append(components, flowComponents...)
+			// Add URL/COPY_CODE button components with dynamic params
 			buttonComponents := whatsapp.ButtonURLParamsToComponents(req.ButtonURLParams, req.Template.Buttons)
 			components = append(components, buttonComponents...)
 			return a.WhatsApp.SendTemplateMessage(sendCtx, waAccount, req.Contact.PhoneNumber, req.Template.Name, req.Template.Language, components)

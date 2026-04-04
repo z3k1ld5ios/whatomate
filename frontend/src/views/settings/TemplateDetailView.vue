@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { api, templatesService } from '@/services/api'
+import { api, templatesService, flowsService } from '@/services/api'
 import { toast } from 'vue-sonner'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import DetailPageLayout from '@/components/shared/DetailPageLayout.vue'
@@ -101,6 +101,9 @@ const headerMediaUploading = ref(false)
 const headerMediaHandle = ref('')
 const headerMediaFilename = ref('')
 
+// WhatsApp Flows for FLOW button type
+const whatsappFlows = ref<any[]>([])
+
 const { showLeaveDialog, confirmLeave, cancelLeave } = useUnsavedChangesGuard(hasChanges)
 
 const canWrite = computed(() => authStore.hasPermission('templates', 'write'))
@@ -131,6 +134,7 @@ const buttonTypes = [
   { value: 'URL', label: 'URL' },
   { value: 'PHONE_NUMBER', label: 'Phone Number' },
   { value: 'COPY_CODE', label: 'Copy Code' },
+  { value: 'FLOW', label: 'Flow' },
 ]
 
 function addButton() {
@@ -407,8 +411,26 @@ async function confirmPublish() {
 
 
 
+async function loadFlows() {
+  try {
+    const response = await flowsService.list({ limit: 100 })
+    const data = (response.data as any).data || response.data
+    whatsappFlows.value = (data.flows || []).filter((f: any) => f.status === 'PUBLISHED')
+  } catch {
+    // non-critical
+  }
+}
+
+function getFlowScreens(flowId: string): string[] {
+  const flow = whatsappFlows.value.find((f: any) => f.meta_flow_id === flowId || f.id === flowId)
+  if (!flow?.screens) return []
+  return flow.screens
+    .map((s: any) => (typeof s === 'string' ? s : s?.id || s?.name))
+    .filter(Boolean)
+}
+
 onMounted(async () => {
-  await loadAccounts()
+  await Promise.all([loadAccounts(), loadFlows()])
   if (isNew.value) {
     isLoading.value = false
     hasChanges.value = false
@@ -635,6 +657,50 @@ onMounted(async () => {
             <div v-if="button.type === 'COPY_CODE'" class="space-y-1">
               <Label class="text-xs">{{ $t('templates.copyCodeExample', 'Example Code') }}</Label>
               <Input v-model="button.example" placeholder="SAVE20" class="h-8 text-xs" :disabled="!canWrite || !isEditable" />
+            </div>
+            <div v-if="button.type === 'FLOW'" class="space-y-2">
+              <div class="space-y-1">
+                <Label class="text-xs">{{ $t('templates.flow', 'Flow') }}</Label>
+                <Select v-model="button.flow_id" :disabled="!canWrite || !isEditable">
+                  <SelectTrigger class="h-8 text-xs">
+                    <SelectValue :placeholder="$t('templates.selectFlow', 'Select a Flow')" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="flow in whatsappFlows" :key="flow.id" :value="flow.meta_flow_id || flow.id">
+                      {{ flow.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div class="space-y-1">
+                <Label class="text-xs">{{ $t('templates.flowAction', 'Flow Action') }}</Label>
+                <Select v-model="button.flow_action" :disabled="!canWrite || !isEditable">
+                  <SelectTrigger class="h-8 text-xs">
+                    <SelectValue placeholder="navigate" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="navigate">Navigate</SelectItem>
+                    <SelectItem value="data_exchange">Data Exchange</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div v-if="button.flow_action === 'navigate' && button.flow_id && getFlowScreens(button.flow_id).length > 0" class="space-y-1">
+                <Label class="text-xs">{{ $t('templates.navigateScreen', 'Screen') }}</Label>
+                <Select v-model="button.navigate_screen" :disabled="!canWrite || !isEditable">
+                  <SelectTrigger class="h-8 text-xs">
+                    <SelectValue :placeholder="$t('templates.selectScreen', 'Select Screen')" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="screen in getFlowScreens(button.flow_id)" :key="screen" :value="screen">
+                      {{ screen }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div v-else-if="button.flow_action === 'navigate'" class="space-y-1">
+                <Label class="text-xs">{{ $t('templates.navigateScreen', 'Screen') }}</Label>
+                <Input v-model="button.navigate_screen" placeholder="SCREEN_ID" class="h-8 text-xs" :disabled="!canWrite || !isEditable" />
+              </div>
             </div>
           </div>
         </div>

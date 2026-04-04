@@ -300,6 +300,41 @@ func BuildTemplateComponents(bodyParams map[string]string, headerType string, he
 	return components
 }
 
+// FlowButtonComponents generates the required button components for FLOW buttons in a template.
+// Meta requires a sub_type "flow" component with a flow_token for each Flow button.
+func FlowButtonComponents(templateButtons []any) []map[string]any {
+	if len(templateButtons) == 0 {
+		return nil
+	}
+
+	var components []map[string]any
+	for i, raw := range templateButtons {
+		btn, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		t, _ := btn["type"].(string)
+		if strings.ToUpper(t) != "FLOW" {
+			continue
+		}
+
+		components = append(components, map[string]any{
+			"type":     "button",
+			"sub_type": "flow",
+			"index":    fmt.Sprintf("%d", i),
+			"parameters": []map[string]any{
+				{
+					"type": "action",
+					"action": map[string]any{
+						"flow_token": fmt.Sprintf("flow_%d", time.Now().UnixNano()),
+					},
+				},
+			},
+		})
+	}
+	return components
+}
+
 // ButtonURLParamsToComponents converts button parameters to WhatsApp API button components.
 // buttonParams maps button index (as string like "0", "1") to the dynamic parameter value.
 // templateButtons is the JSONB buttons array from the template, used to determine button type.
@@ -331,6 +366,10 @@ func ButtonURLParamsToComponents(buttonParams map[string]string, templateButtons
 	components := make([]map[string]any, 0, len(buttonParams))
 	for _, index := range keys {
 		value := buttonParams[index]
+		// Skip button types that don't accept dynamic parameters
+		if t := btnTypes[index]; t == "QUICK_REPLY" || t == "FLOW" || t == "PHONE_NUMBER" {
+			continue
+		}
 		if btnTypes[index] == "COPY_CODE" {
 			components = append(components, map[string]any{
 				"type":     "button",

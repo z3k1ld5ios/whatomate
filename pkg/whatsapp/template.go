@@ -198,6 +198,22 @@ func (c *Client) SubmitTemplate(ctx context.Context, account *Account, template 
 							button["example"] = ex[0]
 						}
 					}
+				case "FLOW":
+					flowID, _ := btnMap["flow_id"].(string)
+					if flowID == "" {
+						continue
+					}
+					button["type"] = "FLOW"
+					button["text"] = btnText
+					button["flow_id"] = flowID
+					flowAction, _ := btnMap["flow_action"].(string)
+					if flowAction == "" {
+						flowAction = "navigate"
+					}
+					button["flow_action"] = flowAction
+					if screen, ok := btnMap["navigate_screen"].(string); ok && screen != "" {
+						button["navigate_screen"] = screen
+					}
 				default:
 					button["type"] = "QUICK_REPLY"
 					button["text"] = btnText

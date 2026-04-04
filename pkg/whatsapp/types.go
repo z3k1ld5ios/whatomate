@@ -87,13 +87,17 @@ type TemplateComponent struct {
 	Example *TemplateExample `json:"example,omitempty"`
 }
 
-// TemplateButton represents a button in a template
+// TemplateButton represents a button in a template.
+// FlowID uses json.Number because Meta returns it as a numeric ID.
 type TemplateButton struct {
-	Type        string `json:"type"`
-	Text        string `json:"text"`
-	URL         string `json:"url,omitempty"`
-	PhoneNumber string `json:"phone_number,omitempty"`
-	Example     any    `json:"example,omitempty"`
+	Type           string      `json:"type"`
+	Text           string      `json:"text"`
+	URL            string      `json:"url,omitempty"`
+	PhoneNumber    string      `json:"phone_number,omitempty"`
+	Example        any         `json:"example,omitempty"`
+	FlowID         json.Number `json:"flow_id,omitempty"`
+	FlowAction     string      `json:"flow_action,omitempty"`
+	NavigateScreen string      `json:"navigate_screen,omitempty"`
 }
 
 // TemplateExample represents example values for template variables
