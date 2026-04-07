@@ -38,6 +38,7 @@ type ContactResponse struct {
 	WhatsAppAccount    string     `json:"whatsapp_account,omitempty"`
 	LastInboundAt      *time.Time `json:"last_inbound_at,omitempty"`
 	ServiceWindowOpen  bool       `json:"service_window_open"`
+	MarketingOptOut    bool       `json:"marketing_opt_out"`
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 }
@@ -188,6 +189,7 @@ func (a *App) ListContacts(r *fastglue.Request) error {
 			WhatsAppAccount:    c.WhatsAppAccount,
 			LastInboundAt:      c.LastInboundAt,
 			ServiceWindowOpen:  serviceWindowOpen,
+			MarketingOptOut:    c.MarketingOptOut,
 			CreatedAt:          c.CreatedAt,
 			UpdatedAt:          c.UpdatedAt,
 		}
@@ -261,6 +263,7 @@ func (a *App) GetContact(r *fastglue.Request) error {
 		UnreadCount:        int(unreadCount),
 		AssignedUserID:     contact.AssignedUserID,
 		WhatsAppAccount:    contact.WhatsAppAccount,
+		MarketingOptOut:    contact.MarketingOptOut,
 		CreatedAt:          contact.CreatedAt,
 		UpdatedAt:          contact.UpdatedAt,
 	}
@@ -1526,6 +1529,7 @@ func (a *App) buildContactResponse(contact *models.Contact, orgID uuid.UUID) Con
 		WhatsAppAccount:    contact.WhatsAppAccount,
 		LastInboundAt:      contact.LastInboundAt,
 		ServiceWindowOpen:  serviceWindowOpen,
+		MarketingOptOut:    contact.MarketingOptOut,
 		CreatedAt:          contact.CreatedAt,
 		UpdatedAt:          contact.UpdatedAt,
 	}

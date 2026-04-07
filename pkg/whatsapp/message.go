@@ -10,18 +10,18 @@ import (
 	"time"
 )
 
-// SendTextMessage sends a text message to a phone number with optional reply context
-func (c *Client) SendTextMessage(ctx context.Context, account *Account, phoneNumber, text string, replyToMsgID ...string) (string, error) {
+// SendTextMessage sends a text message to a recipient with optional reply context
+func (c *Client) SendTextMessage(ctx context.Context, account *Account, rcpt Recipient, text string, replyToMsgID ...string) (string, error) {
 	payload := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
-		"to":                phoneNumber,
 		"type":              "text",
 		"text": map[string]any{
 			"preview_url": false,
 			"body":        text,
 		},
 	}
+	rcpt.SetOnPayload(payload)
 
 	// Add reply context if provided
 	if len(replyToMsgID) > 0 && replyToMsgID[0] != "" {
@@ -31,11 +31,11 @@ func (c *Client) SendTextMessage(ctx context.Context, account *Account, phoneNum
 	}
 
 	url := c.buildMessagesURL(account)
-	c.Log.Debug("Sending text message", "phone", phoneNumber, "url", url)
+	c.Log.Debug("Sending text message", "phone", rcpt.Phone, "url", url)
 
 	respBody, err := c.doRequest(ctx, "POST", url, payload, account.AccessToken)
 	if err != nil {
-		c.Log.Error("Failed to send text message", "error", err, "phone", phoneNumber)
+		c.Log.Error("Failed to send text message", "error", err, "phone", rcpt.Phone)
 		return "", fmt.Errorf("failed to send text message: %w", err)
 	}
 
@@ -49,13 +49,13 @@ func (c *Client) SendTextMessage(ctx context.Context, account *Account, phoneNum
 	}
 
 	messageID := resp.Messages[0].ID
-	c.Log.Info("Text message sent", "message_id", messageID, "phone", phoneNumber)
+	c.Log.Info("Text message sent", "message_id", messageID, "phone", rcpt.Phone)
 	return messageID, nil
 }
 
 // SendInteractiveButtons sends an interactive message with buttons or list
 // If buttons <= 3, sends as buttons; if 4-10, sends as list
-func (c *Client) SendInteractiveButtons(ctx context.Context, account *Account, phoneNumber, bodyText string, buttons []Button) (string, error) {
+func (c *Client) SendInteractiveButtons(ctx context.Context, account *Account, rcpt Recipient, bodyText string, buttons []Button) (string, error) {
 	if len(buttons) == 0 {
 		return "", fmt.Errorf("at least one button is required")
 	}
@@ -125,17 +125,17 @@ func (c *Client) SendInteractiveButtons(ctx context.Context, account *Account, p
 	payload := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
-		"to":                phoneNumber,
 		"type":              "interactive",
 		"interactive":       interactive,
 	}
+	rcpt.SetOnPayload(payload)
 
 	url := c.buildMessagesURL(account)
-	c.Log.Debug("Sending interactive message", "phone", phoneNumber, "button_count", len(buttons))
+	c.Log.Debug("Sending interactive message", "phone", rcpt.Phone, "button_count", len(buttons))
 
 	respBody, err := c.doRequest(ctx, "POST", url, payload, account.AccessToken)
 	if err != nil {
-		c.Log.Error("Failed to send interactive message", "error", err, "phone", phoneNumber)
+		c.Log.Error("Failed to send interactive message", "error", err, "phone", rcpt.Phone)
 		return "", fmt.Errorf("failed to send interactive message: %w", err)
 	}
 
@@ -149,13 +149,13 @@ func (c *Client) SendInteractiveButtons(ctx context.Context, account *Account, p
 	}
 
 	messageID := resp.Messages[0].ID
-	c.Log.Info("Interactive message sent", "message_id", messageID, "phone", phoneNumber)
+	c.Log.Info("Interactive message sent", "message_id", messageID, "phone", rcpt.Phone)
 	return messageID, nil
 }
 
 // SendCTAURLButton sends an interactive message with a CTA URL button
 // This opens a URL when clicked instead of sending a reply
-func (c *Client) SendCTAURLButton(ctx context.Context, account *Account, phoneNumber, bodyText, buttonText, url string) (string, error) {
+func (c *Client) SendCTAURLButton(ctx context.Context, account *Account, rcpt Recipient, bodyText, buttonText, url string) (string, error) {
 	if buttonText == "" || url == "" {
 		return "", fmt.Errorf("button text and URL are required")
 	}
@@ -182,17 +182,17 @@ func (c *Client) SendCTAURLButton(ctx context.Context, account *Account, phoneNu
 	payload := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
-		"to":                phoneNumber,
 		"type":              "interactive",
 		"interactive":       interactive,
 	}
+	rcpt.SetOnPayload(payload)
 
 	apiURL := c.buildMessagesURL(account)
-	c.Log.Debug("Sending CTA URL button message", "phone", phoneNumber, "url", url)
+	c.Log.Debug("Sending CTA URL button message", "phone", rcpt.Phone, "url", url)
 
 	respBody, err := c.doRequest(ctx, "POST", apiURL, payload, account.AccessToken)
 	if err != nil {
-		c.Log.Error("Failed to send CTA URL button message", "error", err, "phone", phoneNumber)
+		c.Log.Error("Failed to send CTA URL button message", "error", err, "phone", rcpt.Phone)
 		return "", fmt.Errorf("failed to send CTA URL button message: %w", err)
 	}
 
@@ -206,7 +206,7 @@ func (c *Client) SendCTAURLButton(ctx context.Context, account *Account, phoneNu
 	}
 
 	messageID := resp.Messages[0].ID
-	c.Log.Info("CTA URL button message sent", "message_id", messageID, "phone", phoneNumber)
+	c.Log.Info("CTA URL button message sent", "message_id", messageID, "phone", rcpt.Phone)
 	return messageID, nil
 }
 
@@ -399,7 +399,7 @@ func ButtonURLParamsToComponents(buttonParams map[string]string, templateButtons
 // flowID is the Meta Flow ID, headerText is optional header, bodyText is the message body,
 // ctaText is the button text, flowToken is a unique token for tracking the flow response,
 // and firstScreen is the name of the first screen to navigate to
-func (c *Client) SendFlowMessage(ctx context.Context, account *Account, phoneNumber, flowID, headerText, bodyText, ctaText, flowToken, firstScreen string) (string, error) {
+func (c *Client) SendFlowMessage(ctx context.Context, account *Account, rcpt Recipient, flowID, headerText, bodyText, ctaText, flowToken, firstScreen string) (string, error) {
 	if flowID == "" {
 		return "", fmt.Errorf("flow ID is required")
 	}
@@ -452,17 +452,17 @@ func (c *Client) SendFlowMessage(ctx context.Context, account *Account, phoneNum
 	payload := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
-		"to":                phoneNumber,
 		"type":              "interactive",
 		"interactive":       interactive,
 	}
+	rcpt.SetOnPayload(payload)
 
 	url := c.buildMessagesURL(account)
-	c.Log.Debug("Sending flow message", "phone", phoneNumber, "flow_id", flowID)
+	c.Log.Debug("Sending flow message", "phone", rcpt.Phone, "flow_id", flowID)
 
 	respBody, err := c.doRequest(ctx, "POST", url, payload, account.AccessToken)
 	if err != nil {
-		c.Log.Error("Failed to send flow message", "error", err, "phone", phoneNumber, "flow_id", flowID)
+		c.Log.Error("Failed to send flow message", "error", err, "phone", rcpt.Phone, "flow_id", flowID)
 		return "", fmt.Errorf("failed to send flow message: %w", err)
 	}
 
@@ -476,12 +476,12 @@ func (c *Client) SendFlowMessage(ctx context.Context, account *Account, phoneNum
 	}
 
 	messageID := resp.Messages[0].ID
-	c.Log.Info("Flow message sent", "message_id", messageID, "phone", phoneNumber, "flow_id", flowID)
+	c.Log.Info("Flow message sent", "message_id", messageID, "phone", rcpt.Phone, "flow_id", flowID)
 	return messageID, nil
 }
 
 // SendTemplateMessage sends a template message with optional components (header, body, buttons, etc.)
-func (c *Client) SendTemplateMessage(ctx context.Context, account *Account, phoneNumber, templateName, languageCode string, components []map[string]any) (string, error) {
+func (c *Client) SendTemplateMessage(ctx context.Context, account *Account, rcpt Recipient, templateName, languageCode string, components []map[string]any) (string, error) {
 	template := map[string]any{
 		"name": templateName,
 		"language": map[string]any{
@@ -495,17 +495,17 @@ func (c *Client) SendTemplateMessage(ctx context.Context, account *Account, phon
 
 	payload := map[string]any{
 		"messaging_product": "whatsapp",
-		"to":                phoneNumber,
 		"type":              "template",
 		"template":          template,
 	}
+	rcpt.SetOnPayload(payload)
 
 	url := c.buildMessagesURL(account)
-	c.Log.Debug("Sending template message with components", "phone", phoneNumber, "template", templateName)
+	c.Log.Debug("Sending template message with components", "phone", rcpt.Phone, "template", templateName)
 
 	respBody, err := c.doRequest(ctx, "POST", url, payload, account.AccessToken)
 	if err != nil {
-		c.Log.Error("Failed to send template message", "error", err, "phone", phoneNumber, "template", templateName)
+		c.Log.Error("Failed to send template message", "error", err, "phone", rcpt.Phone, "template", templateName)
 		return "", fmt.Errorf("failed to send template message: %w", err)
 	}
 
@@ -519,6 +519,6 @@ func (c *Client) SendTemplateMessage(ctx context.Context, account *Account, phon
 	}
 
 	messageID := resp.Messages[0].ID
-	c.Log.Info("Template message sent", "message_id", messageID, "phone", phoneNumber, "template", templateName)
+	c.Log.Info("Template message sent", "message_id", messageID, "phone", rcpt.Phone, "template", templateName)
 	return messageID, nil
 }

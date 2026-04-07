@@ -819,8 +819,9 @@ async function sendTemplateMessage() {
     templateParamValues.value = {}
     clearTemplateHeaderMedia()
     templateButtonUrlParams.value = []
-  } catch {
-    toast.error(t('chat.templateSendFailed'))
+  } catch (error: any) {
+    const message = error.response?.data?.message || t('chat.templateSendFailed')
+    toast.error(message)
   } finally {
     isSendingTemplate.value = false
   }
@@ -1039,15 +1040,15 @@ function getMessageContent(message: Message): string {
   if (message.message_type === 'text') {
     return message.content?.body || ''
   }
-  if (message.message_type === 'button_reply') {
-    // Button reply stores the selected button title in content
+  if (message.message_type === 'button_reply' || message.message_type === 'nfm_reply') {
+    // Button/flow reply stores the response text in content
     if (typeof message.content === 'string') {
       return message.content
     }
     return message.content?.body || ''
   }
-  if (message.message_type === 'interactive') {
-    // Interactive messages store body text in content (string) or content.body or interactive_data.body
+  if (message.message_type === 'interactive' || message.message_type === 'flow') {
+    // Interactive/flow messages store body text in content (string) or content.body or interactive_data.body
     if (typeof message.content === 'string') {
       return message.content
     }
@@ -1167,6 +1168,16 @@ function getCTAUrlData(message: Message): CTAUrlData | null {
     button_text: (message.interactive_data as any).button_text || 'Open',
     url: (message.interactive_data as any).url || ''
   }
+}
+
+function getFlowButtonText(message: Message): string | null {
+  if (message.message_type !== 'flow') {
+    return null
+  }
+  if (!message.interactive_data) {
+    return null
+  }
+  return (message.interactive_data as any).button_text || 'Open'
 }
 
 function isMediaMessage(message: Message): boolean {
@@ -1537,6 +1548,9 @@ async function sendMediaMessage() {
                 </p>
                 <Badge v-if="activeTransferId" class="text-[10px] h-5 bg-orange-500/20 text-orange-400 light:bg-orange-100 light:text-orange-700">
                   Paused
+                </Badge>
+                <Badge v-if="contactsStore.currentContact?.marketing_opt_out" class="text-[10px] h-5 bg-red-500/20 text-red-400 light:bg-red-100 light:text-red-700" :title="$t('chat.marketingOptOut')">
+                  {{ $t('chat.marketingOptOut', 'Marketing Opt-out') }}
                 </Badge>
               </div>
               <p class="text-[11px] text-white/50 light:text-gray-500">
@@ -1947,6 +1961,15 @@ async function sendMediaMessage() {
                     {{ getCTAUrlData(message)?.button_text }}
                   </div>
                 </a>
+                <!-- Flow button - WhatsApp style -->
+                <div
+                  v-if="getFlowButtonText(message)"
+                  class="interactive-buttons mt-2 -mx-2 -mb-1.5 border-t"
+                >
+                  <div class="py-2 text-sm text-center font-medium">
+                    {{ getFlowButtonText(message) }}
+                  </div>
+                </div>
                 <!-- Time for messages without text content -->
                 <span v-if="!getMessageContent(message) && !(isMediaMessage(message) && !message.media_url)" class="chat-bubble-time block clear-both">
                   <span>{{ formatMessageTime(message.created_at) }}</span>

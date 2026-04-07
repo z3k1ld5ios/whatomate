@@ -522,13 +522,24 @@ async function loadFlow(id: string) {
   }
 }
 
-function addStep() {
+function addStep(type?: string) {
   const newOrder = formData.value.steps.length + 1
-  formData.value.steps.push({
+  const step: any = {
     ...defaultStep,
     step_name: `step_${newOrder}`,
     step_order: newOrder,
-  })
+  }
+  if (type) {
+    step.message_type = type
+    if (type === 'whatsapp_flow') {
+      step.input_config = { whatsapp_flow_id: '', flow_header: '', flow_cta: '' }
+      step.input_type = 'none'
+    }
+    if (type === 'transfer') {
+      step.input_type = 'none'
+    }
+  }
+  formData.value.steps.push(step)
   selectedStepIndex.value = formData.value.steps.length - 1
 }
 
@@ -596,6 +607,10 @@ function onChangeStepType(stepIndex: number, newType: string) {
     actual.transfer_config = { team_id: '_general', notes: '' }
   }
   if (newType === 'transfer') {
+    actual.input_type = 'none'
+  }
+  if (newType === 'whatsapp_flow') {
+    actual.input_config = { whatsapp_flow_id: '', flow_header: '', flow_cta: '' }
     actual.input_type = 'none'
   }
 

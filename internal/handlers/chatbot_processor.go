@@ -20,10 +20,11 @@ import (
 
 // IncomingTextMessage represents a text, interactive, or media message from the webhook
 type IncomingTextMessage struct {
-	From      string `json:"from"`
-	ID        string `json:"id"`
-	Timestamp string `json:"timestamp"`
-	Type      string `json:"type"`
+	From       string `json:"from"`
+	FromUserID string `json:"from_user_id,omitempty"` // BSUID
+	ID         string `json:"id"`
+	Timestamp  string `json:"timestamp"`
+	Type       string `json:"type"`
 	Text      *struct {
 		Body string `json:"body"`
 	} `json:"text,omitempty"`
@@ -128,6 +129,12 @@ func (a *App) processIncomingMessageFull(phoneNumberID string, msg IncomingTextM
 
 	// Get or create contact (always do this for all incoming messages)
 	contact, isNewContact, _ := contactutil.GetOrCreateContact(a.DB, account.OrganizationID, msg.From, profileName)
+
+	// Store BSUID if provided and not already set
+	if msg.FromUserID != "" && contact.BSUID != msg.FromUserID {
+		a.DB.Model(contact).Update("bsuid", msg.FromUserID)
+		contact.BSUID = msg.FromUserID
+	}
 
 	// Dispatch webhook if new contact was created
 	if isNewContact {
@@ -2246,7 +2253,7 @@ func (a *App) saveIncomingMessage(account *models.WhatsAppAccount, contact *mode
 	if len(preview) > 100 {
 		preview = preview[:97] + "..."
 	}
-	if msgType != "text" && msgType != "button_reply" {
+	if msgType != "text" && msgType != "button_reply" && msgType != "nfm_reply" {
 		preview = "[" + msgType + "]"
 	}
 

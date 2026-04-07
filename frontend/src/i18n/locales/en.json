@@ -300,6 +300,7 @@
     "goAway": "Go Away"
   },
   "chat": {
+    "marketingOptOut": "Marketing Opt-out",
     "conversations": "Conversations",
     "messages": "Messages",
     "noContacts": "No contacts found",

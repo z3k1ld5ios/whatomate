@@ -325,17 +325,17 @@ func (c *Client) UploadMedia(ctx context.Context, account *Account, data []byte,
 }
 
 // sendMediaMessage is the shared implementation for all media message types.
-func (c *Client) sendMediaMessage(ctx context.Context, account *Account, phoneNumber, mediaType string, mediaFields map[string]any) (string, error) {
+func (c *Client) sendMediaMessage(ctx context.Context, account *Account, rcpt Recipient, mediaType string, mediaFields map[string]any) (string, error) {
 	payload := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
-		"to":                phoneNumber,
 		"type":              mediaType,
 		mediaType:           mediaFields,
 	}
+	rcpt.SetOnPayload(payload)
 
 	url := c.buildMessagesURL(account)
-	c.Log.Debug("Sending media message", "type", mediaType, "phone", phoneNumber, "media_id", mediaFields["id"])
+	c.Log.Debug("Sending media message", "type", mediaType, "phone", rcpt.Phone, "media_id", mediaFields["id"])
 
 	respBody, err := c.doRequest(ctx, "POST", url, payload, account.AccessToken)
 	if err != nil {
@@ -352,34 +352,34 @@ func (c *Client) sendMediaMessage(ctx context.Context, account *Account, phoneNu
 	}
 
 	messageID := resp.Messages[0].ID
-	c.Log.Info("Media message sent", "type", mediaType, "message_id", messageID, "phone", phoneNumber)
+	c.Log.Info("Media message sent", "type", mediaType, "message_id", messageID, "phone", rcpt.Phone)
 	return messageID, nil
 }
 
 // SendImageMessage sends an image message using a media ID
-func (c *Client) SendImageMessage(ctx context.Context, account *Account, phoneNumber, mediaID, caption string) (string, error) {
-	return c.sendMediaMessage(ctx, account, phoneNumber, "image", map[string]any{
+func (c *Client) SendImageMessage(ctx context.Context, account *Account, rcpt Recipient, mediaID, caption string) (string, error) {
+	return c.sendMediaMessage(ctx, account, rcpt, "image", map[string]any{
 		"id": mediaID, "caption": caption,
 	})
 }
 
 // SendDocumentMessage sends a document message using a media ID
-func (c *Client) SendDocumentMessage(ctx context.Context, account *Account, phoneNumber, mediaID, filename, caption string) (string, error) {
-	return c.sendMediaMessage(ctx, account, phoneNumber, "document", map[string]any{
+func (c *Client) SendDocumentMessage(ctx context.Context, account *Account, rcpt Recipient, mediaID, filename, caption string) (string, error) {
+	return c.sendMediaMessage(ctx, account, rcpt, "document", map[string]any{
 		"id": mediaID, "filename": filename, "caption": caption,
 	})
 }
 
 // SendVideoMessage sends a video message using a media ID
-func (c *Client) SendVideoMessage(ctx context.Context, account *Account, phoneNumber, mediaID, caption string) (string, error) {
-	return c.sendMediaMessage(ctx, account, phoneNumber, "video", map[string]any{
+func (c *Client) SendVideoMessage(ctx context.Context, account *Account, rcpt Recipient, mediaID, caption string) (string, error) {
+	return c.sendMediaMessage(ctx, account, rcpt, "video", map[string]any{
 		"id": mediaID, "caption": caption,
 	})
 }
 
 // SendAudioMessage sends an audio message using a media ID
-func (c *Client) SendAudioMessage(ctx context.Context, account *Account, phoneNumber, mediaID string) (string, error) {
-	return c.sendMediaMessage(ctx, account, phoneNumber, "audio", map[string]any{
+func (c *Client) SendAudioMessage(ctx context.Context, account *Account, rcpt Recipient, mediaID string) (string, error) {
+	return c.sendMediaMessage(ctx, account, rcpt, "audio", map[string]any{
 		"id": mediaID,
 	})
 }

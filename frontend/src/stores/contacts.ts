@@ -17,6 +17,7 @@ export interface Contact {
   unread_count: number
   assigned_user_id?: string
   whatsapp_account?: string
+  marketing_opt_out?: boolean
   created_at: string
   updated_at: string
 }

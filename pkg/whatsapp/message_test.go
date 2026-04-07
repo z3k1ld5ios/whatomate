@@ -129,7 +129,7 @@ func TestClient_SendInteractiveButtons(t *testing.T) {
 			}
 			ctx := testutil.TestContext(t)
 
-			_, err := client.SendInteractiveButtons(ctx, account, tt.phone, tt.bodyText, tt.buttons)
+			_, err := client.SendInteractiveButtons(ctx, account, whatsapp.Recipient{Phone: tt.phone}, tt.bodyText, tt.buttons)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -182,7 +182,7 @@ func TestClient_SendInteractiveButtons_ButtonTruncation(t *testing.T) {
 		{ID: "1", Title: longTitle},
 	}
 
-	_, err := client.SendInteractiveButtons(ctx, account, "1234567890", "Choose:", buttons)
+	_, err := client.SendInteractiveButtons(ctx, account, whatsapp.Recipient{Phone: "1234567890"}, "Choose:", buttons)
 	require.NoError(t, err)
 
 	// Verify button title was truncated
@@ -271,7 +271,7 @@ func TestClient_SendTemplateMessage(t *testing.T) {
 			ctx := testutil.TestContext(t)
 
 			components := whatsapp.BodyParamsToComponents(tt.bodyParams)
-			msgID, err := client.SendTemplateMessage(ctx, account, tt.phone, tt.templateName, tt.language, components)
+			msgID, err := client.SendTemplateMessage(ctx, account, whatsapp.Recipient{Phone: tt.phone}, tt.templateName, tt.language, components)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -382,7 +382,7 @@ func TestClient_SendCTAURLButton(t *testing.T) {
 			}
 			ctx := testutil.TestContext(t)
 
-			msgID, err := client.SendCTAURLButton(ctx, account, tt.phone, tt.bodyText, tt.buttonText, tt.url)
+			msgID, err := client.SendCTAURLButton(ctx, account, whatsapp.Recipient{Phone: tt.phone}, tt.bodyText, tt.buttonText, tt.url)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -451,7 +451,7 @@ func TestClient_SendTemplateMessage_WithComponents(t *testing.T) {
 		},
 	}
 
-	msgID, err := client.SendTemplateMessage(ctx, account, "1234567890", "order_template", "en", components)
+	msgID, err := client.SendTemplateMessage(ctx, account, whatsapp.Recipient{Phone: "1234567890"}, "order_template", "en", components)
 
 	require.NoError(t, err)
 	assert.Equal(t, "wamid.comp123", msgID)

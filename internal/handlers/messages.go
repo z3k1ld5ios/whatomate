@@ -142,6 +142,7 @@ func (a *App) SendOutgoingMessage(ctx context.Context, req OutgoingMessageReques
 	// 2. Define the send function based on message type
 	sendFn := func(sendCtx context.Context) (string, error) {
 		waAccount := a.toWhatsAppAccount(req.Account)
+		rcpt := whatsapp.Recipient{Phone: req.Contact.PhoneNumber, BSUID: req.Contact.BSUID}
 
 		// Get reply-to message ID if this is a reply
 		var replyToMsgID string
@@ -151,7 +152,7 @@ func (a *App) SendOutgoingMessage(ctx context.Context, req OutgoingMessageReques
 
 		switch req.Type {
 		case models.MessageTypeText:
-			return a.WhatsApp.SendTextMessage(sendCtx, waAccount, req.Contact.PhoneNumber, req.Content, replyToMsgID)
+			return a.WhatsApp.SendTextMessage(sendCtx, waAccount, rcpt, req.Content, replyToMsgID)
 
 		case models.MessageTypeImage, models.MessageTypeVideo, models.MessageTypeAudio, models.MessageTypeDocument:
 			// Upload media if MediaData is provided and MediaID is not set
@@ -166,21 +167,21 @@ func (a *App) SendOutgoingMessage(ctx context.Context, req OutgoingMessageReques
 			// Send the appropriate media type
 			switch req.Type {
 			case models.MessageTypeImage:
-				return a.WhatsApp.SendImageMessage(sendCtx, waAccount, req.Contact.PhoneNumber, mediaID, req.Caption)
+				return a.WhatsApp.SendImageMessage(sendCtx, waAccount, rcpt, mediaID, req.Caption)
 			case models.MessageTypeVideo:
-				return a.WhatsApp.SendVideoMessage(sendCtx, waAccount, req.Contact.PhoneNumber, mediaID, req.Caption)
+				return a.WhatsApp.SendVideoMessage(sendCtx, waAccount, rcpt, mediaID, req.Caption)
 			case models.MessageTypeAudio:
-				return a.WhatsApp.SendAudioMessage(sendCtx, waAccount, req.Contact.PhoneNumber, mediaID)
+				return a.WhatsApp.SendAudioMessage(sendCtx, waAccount, rcpt, mediaID)
 			default: // document
-				return a.WhatsApp.SendDocumentMessage(sendCtx, waAccount, req.Contact.PhoneNumber, mediaID, req.MediaFilename, req.Caption)
+				return a.WhatsApp.SendDocumentMessage(sendCtx, waAccount, rcpt, mediaID, req.MediaFilename, req.Caption)
 			}
 
 		case models.MessageTypeInteractive:
 			switch req.InteractiveType {
 			case "cta_url":
-				return a.WhatsApp.SendCTAURLButton(sendCtx, waAccount, req.Contact.PhoneNumber, req.BodyText, req.ButtonText, req.URL)
+				return a.WhatsApp.SendCTAURLButton(sendCtx, waAccount, rcpt, req.BodyText, req.ButtonText, req.URL)
 			default: // "button" or "list"
-				return a.WhatsApp.SendInteractiveButtons(sendCtx, waAccount, req.Contact.PhoneNumber, req.BodyText, req.Buttons)
+				return a.WhatsApp.SendInteractiveButtons(sendCtx, waAccount, rcpt, req.BodyText, req.Buttons)
 			}
 
 		case models.MessageTypeTemplate:
@@ -194,13 +195,13 @@ func (a *App) SendOutgoingMessage(ctx context.Context, req OutgoingMessageReques
 			// Add URL/COPY_CODE button components with dynamic params
 			buttonComponents := whatsapp.ButtonURLParamsToComponents(req.ButtonURLParams, req.Template.Buttons)
 			components = append(components, buttonComponents...)
-			return a.WhatsApp.SendTemplateMessage(sendCtx, waAccount, req.Contact.PhoneNumber, req.Template.Name, req.Template.Language, components)
+			return a.WhatsApp.SendTemplateMessage(sendCtx, waAccount, rcpt, req.Template.Name, req.Template.Language, components)
 
 		case models.MessageTypeFlow:
 			if req.FlowID == "" {
 				return "", fmt.Errorf("flow ID is required for flow messages")
 			}
-			return a.WhatsApp.SendFlowMessage(sendCtx, waAccount, req.Contact.PhoneNumber, req.FlowID, req.FlowHeader, req.BodyText, req.FlowCTA, req.FlowToken, req.FlowFirstScreen)
+			return a.WhatsApp.SendFlowMessage(sendCtx, waAccount, rcpt, req.FlowID, req.FlowHeader, req.BodyText, req.FlowCTA, req.FlowToken, req.FlowFirstScreen)
 
 		default:
 			return "", fmt.Errorf("unsupported message type: %s", req.Type)
@@ -275,6 +276,15 @@ func (a *App) createOutgoingMessage(req OutgoingMessageRequest, opts MessageSend
 	case models.MessageTypeInteractive:
 		msg.Content = req.BodyText
 		msg.InteractiveData = a.buildInteractiveData(req)
+
+	case models.MessageTypeFlow:
+		msg.Content = req.BodyText
+		msg.InteractiveData = models.JSONB{
+			"type":        "flow",
+			"body":        req.BodyText,
+			"button_text": req.FlowCTA,
+			"flow_id":     req.FlowID,
+		}
 
 	case models.MessageTypeTemplate:
 		if req.Template != nil {
@@ -451,6 +461,7 @@ func (a *App) broadcastNewMessage(orgID uuid.UUID, msg *models.Message, contact 
 		"media_url":        msg.MediaURL,
 		"media_mime_type":  msg.MediaMimeType,
 		"media_filename":   msg.MediaFilename,
+		"interactive_data": msg.InteractiveData,
 		"status":           msg.Status,
 		"wamid":            msg.WhatsAppMessageID,
 		"created_at":       msg.CreatedAt,
@@ -551,6 +562,8 @@ func (a *App) getMessagePreview(req OutgoingMessageRequest) string {
 		}
 		return "[Document]"
 	case models.MessageTypeInteractive:
+		return truncateString(req.BodyText, 100)
+	case models.MessageTypeFlow:
 		return truncateString(req.BodyText, 100)
 	case models.MessageTypeTemplate:
 		if req.Template != nil {
@@ -811,6 +824,11 @@ func (a *App) SendTemplateMessage(r *fastglue.Request) error {
 		} else {
 			headerLocalPath = localPath
 		}
+	}
+
+	// Check marketing opt-out
+	if contact.MarketingOptOut && strings.EqualFold(template.Category, "MARKETING") {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Contact has opted out of marketing messages", nil, "")
 	}
 
 	// Send using unified message sender

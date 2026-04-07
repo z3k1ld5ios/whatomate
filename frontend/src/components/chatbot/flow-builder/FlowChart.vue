@@ -37,7 +37,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   selectStep: [index: number]
-  addStep: []
+  addStep: [type?: string]
   selectFlowSettings: []
   openPreview: []
   connectSteps: [sourceStep: string, targetStep: string, sourceHandle: string]
@@ -239,7 +239,7 @@ function onEdgeRemove(edges: Edge[]) {
         :variant="getSelectedStepType() === p.type ? 'active' : 'outline'"
         size="sm"
         class="h-7 text-xs gap-1.5 shrink-0"
-        @click="selectedOnCanvas !== null ? onPaletteClick(p.type) : emit('addStep')"
+        @click="selectedOnCanvas !== null ? onPaletteClick(p.type) : emit('addStep', p.type)"
       >
         <div :class="['w-2 h-2 rounded-full', p.color]" />
         <component :is="p.icon" class="w-3.5 h-3.5" />
