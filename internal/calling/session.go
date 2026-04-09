@@ -588,12 +588,20 @@ func (m *Manager) finalizeRecording(orgID, callLogID uuid.UUID, callerRec, agent
 	var callerCount, agentCount int
 
 	if callerRec != nil {
-		callerPath, callerCount = callerRec.Stop()
+		var err error
+		callerPath, callerCount, err = callerRec.Stop()
 		defer func() { _ = os.Remove(callerPath) }()
+		if err != nil {
+			m.log.Error("Caller recording had write errors", "error", err, "call_log_id", callLogID)
+		}
 	}
 	if agentRec != nil {
-		agentPath, agentCount = agentRec.Stop()
+		var err error
+		agentPath, agentCount, err = agentRec.Stop()
 		defer func() { _ = os.Remove(agentPath) }()
+		if err != nil {
+			m.log.Error("Agent recording had write errors", "error", err, "call_log_id", callLogID)
+		}
 	}
 
 	maxCount := callerCount
@@ -605,7 +613,10 @@ func (m *Manager) finalizeRecording(orgID, callLogID uuid.UUID, callerRec, agent
 	}
 
 	// Duration from the longer stream (each packet = 20ms)
-	durationSecs := (maxCount * 20) / 1000
+	durationSecs := maxCount * 20 / 1000
+	if durationSecs == 0 && maxCount > 0 {
+		durationSecs = 1
+	}
 
 	// Merge the two direction files into one using FFmpeg.
 	// If only one direction was recorded, use it directly.
@@ -641,15 +652,22 @@ func (m *Manager) finalizeRecording(orgID, callLogID uuid.UUID, callerRec, agent
 
 	if err := m.s3.Upload(ctx, s3Key, f, "audio/ogg"); err != nil {
 		m.log.Error("Failed to upload recording to S3", "error", err, "call_log_id", callLogID)
+		if dbErr := m.db.Model(&models.CallLog{}).
+			Where("id = ?", callLogID).
+			Update("recording_error", err.Error()).Error; dbErr != nil {
+			m.log.Error("Failed to update call log with recording error", "error", dbErr, "call_log_id", callLogID)
+		}
 		return
 	}
 
-	m.db.Model(&models.CallLog{}).
+	if err := m.db.Model(&models.CallLog{}).
 		Where("id = ?", callLogID).
 		Updates(map[string]any{
 			"recording_s3_key":    s3Key,
 			"recording_duration": durationSecs,
-		})
+		}).Error; err != nil {
+		m.log.Error("Failed to update call log with recording metadata", "error", err, "s3_key", s3Key, "call_log_id", callLogID)
+	}
 
 	m.log.Info("Recording uploaded",
 		"call_log_id", callLogID,
@@ -669,7 +687,7 @@ func mergeRecordings(file1, file2 string) (string, error) {
 	outPath := out.Name()
 	_ = out.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "ffmpeg",

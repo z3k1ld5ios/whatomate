@@ -59,6 +59,7 @@ type CallLog struct {
 	ErrorMessage      string        `gorm:"type:text" json:"error_message,omitempty"`
 	RecordingS3Key    string        `gorm:"size:500" json:"recording_s3_key,omitempty"`
 	RecordingDuration int           `gorm:"default:0" json:"recording_duration,omitempty"`
+	RecordingError    string        `gorm:"type:text" json:"recording_error,omitempty"`
 
 	// Relations
 	Contact *Contact `gorm:"foreignKey:ContactID" json:"contact,omitempty"`
