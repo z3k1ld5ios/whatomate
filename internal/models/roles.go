@@ -54,6 +54,13 @@ const (
 	ResourceSettingsSSO          = "settings.sso"
 	ResourceSettingsCalling      = "settings.calling"
 	ResourceSettingsNotification = "settings.notification"
+	// Chatbot sub-resources — used only as audit_log resource_type values
+	// for per-tab activity feeds, not checked by the permission system.
+	ResourceSettingsChatbotMessages = "settings.chatbot.messages"
+	ResourceSettingsChatbotAgents   = "settings.chatbot.agents"
+	ResourceSettingsChatbotHours    = "settings.chatbot.hours"
+	ResourceSettingsChatbotSLA      = "settings.chatbot.sla"
+	ResourceSettingsChatbotAI       = "settings.chatbot.ai"
 	ResourceAccounts        = "accounts"
 	ResourceTemplates       = "templates"
 	ResourceFlowsWhatsApp   = "flows.whatsapp"
