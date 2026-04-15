@@ -313,6 +313,9 @@ func (a *App) CreateUser(r *fastglue.Request) error {
 		softDeleted.IsActive = true
 		softDeleted.IsSuperAdmin = isSuperAdmin
 
+		audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+			"user", softDeleted.ID, models.AuditActionCreated, nil, userAuditSnapshot(&softDeleted))
+
 		return r.SendEnvelope(userToResponse(softDeleted))
 	}
 
@@ -345,6 +348,9 @@ func (a *App) CreateUser(r *fastglue.Request) error {
 
 	// Load role for response
 	a.DB.Preload("Role").First(&user, user.ID)
+
+	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+		"user", user.ID, models.AuditActionCreated, nil, userAuditSnapshot(&user))
 
 	return r.SendEnvelope(userToResponse(user))
 }
@@ -391,6 +397,9 @@ func (a *App) UpdateUser(r *fastglue.Request) error {
 		}
 	}
 
+	// Snapshot before changes for audit log diff.
+	oldSnap := userAuditSnapshot(&user)
+
 	var req UserRequest
 	if err := r.Decode(&req, "json"); err != nil {
 		a.Log.Error("UpdateUser: Failed to decode request", "error", err, "body", string(r.RequestCtx.PostBody()))
@@ -424,6 +433,10 @@ func (a *App) UpdateUser(r *fastglue.Request) error {
 		// Return updated response
 		user.RoleID = req.RoleID
 		user.Role = &newRole
+
+		audit.LogAudit(a.DB, orgID, currentUserID, audit.GetUserName(a.DB, currentUserID),
+			"user", user.ID, models.AuditActionUpdated, oldSnap, userAuditSnapshot(&user))
+
 		resp := userToResponse(user)
 		resp.IsMember = true
 		return r.SendEnvelope(resp)
@@ -508,6 +521,9 @@ func (a *App) UpdateUser(r *fastglue.Request) error {
 	// Load role for response
 	a.DB.Preload("Role").First(&user, user.ID)
 
+	audit.LogAudit(a.DB, orgID, currentUserID, audit.GetUserName(a.DB, currentUserID),
+		"user", user.ID, models.AuditActionUpdated, oldSnap, userAuditSnapshot(&user))
+
 	return r.SendEnvelope(userToResponse(user))
 }
 
@@ -555,6 +571,10 @@ func (a *App) DeleteUser(r *fastglue.Request) error {
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to remove member", nil, "")
 		}
 		a.InvalidateUserPermissionsCache(id)
+
+		audit.LogAudit(a.DB, orgID, currentUserID, audit.GetUserName(a.DB, currentUserID),
+			"user", id, models.AuditActionDeleted, userAuditSnapshot(&user), nil)
+
 		return r.SendEnvelope(map[string]string{"message": "Member removed from organization"})
 	}
 
@@ -586,6 +606,9 @@ func (a *App) DeleteUser(r *fastglue.Request) error {
 
 	// Delete all UserOrganization entries for this user
 	a.DB.Where("user_id = ?", id).Delete(&models.UserOrganization{})
+
+	audit.LogAudit(a.DB, orgID, currentUserID, audit.GetUserName(a.DB, currentUserID),
+		"user", id, models.AuditActionDeleted, userAuditSnapshot(&user), nil)
 
 	return r.SendEnvelope(map[string]string{"message": "User deleted successfully"})
 }
@@ -755,6 +778,27 @@ func (a *App) ChangePassword(r *fastglue.Request) error {
 }
 
 // Helper function to convert User to UserResponse
+// userAuditSnapshot returns a minimal, diff-friendly representation of a user
+// for audit logging. Sensitive fields (password hash) and noisy fields (settings,
+// availability, timestamps) are intentionally excluded.
+func userAuditSnapshot(user *models.User) map[string]any {
+	if user == nil {
+		return nil
+	}
+	snap := map[string]any{
+		"full_name":      user.FullName,
+		"email":          user.Email,
+		"is_active":      user.IsActive,
+		"is_super_admin": user.IsSuperAdmin,
+	}
+	if user.Role != nil {
+		snap["role"] = user.Role.Name
+	} else {
+		snap["role"] = ""
+	}
+	return snap
+}
+
 func userToResponse(user models.User) UserResponse {
 	resp := UserResponse{
 		ID:             user.ID,

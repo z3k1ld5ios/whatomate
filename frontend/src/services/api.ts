@@ -135,6 +135,7 @@ export const authService = {
 export const usersService = {
   list: (params?: { search?: string; page?: number; limit?: number }) =>
     api.get('/users', { params }),
+  get: (id: string) => api.get(`/users/${id}`),
   create: (data: { email: string; password: string; full_name: string; role_id?: string }) =>
     api.post('/users', data),
   update: (id: string, data: { email?: string; password?: string; full_name?: string; role_id?: string; is_active?: boolean }) =>

@@ -213,9 +213,21 @@ const router = createRouter({
           meta: { permission: 'users' }
         },
         {
+          path: 'settings/users/:id',
+          name: 'user-detail',
+          component: () => import('@/views/settings/UserDetailView.vue'),
+          meta: { permission: 'users' }
+        },
+        {
           path: 'settings/roles',
           name: 'roles',
           component: () => import('@/views/settings/RolesView.vue'),
+          meta: { permission: 'roles' }
+        },
+        {
+          path: 'settings/roles/:id',
+          name: 'role-detail',
+          component: () => import('@/views/settings/RoleDetailView.vue'),
           meta: { permission: 'roles' }
         },
         {
