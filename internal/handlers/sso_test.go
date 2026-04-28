@@ -329,6 +329,9 @@ func TestApp_InitSSO_InvalidProviderRejected(t *testing.T) {
 
 func TestApp_InitSSO_NoConfigReturns404(t *testing.T) {
 	app := newSSOApp(t)
+	// Other tests in this package create enabled providers; clear them so the
+	// "not configured" path is actually exercised.
+	require.NoError(t, app.DB.Exec("DELETE FROM sso_providers").Error)
 
 	req := testutil.NewGETRequest(t)
 	testutil.SetPathParam(req, "provider", "google")
@@ -469,13 +472,15 @@ func TestApp_CallbackSSO_StateIsSingleUse(t *testing.T) {
 func TestApp_CallbackSSO_CustomProvider_ExistingUser_LoginSuccess(t *testing.T) {
 	app := newSSOApp(t)
 	fake := newFakeOAuth(t)
+	email := testutil.UniqueEmail("sso-existing")
+	fake.UserEmail = email
 	org := testutil.CreateTestOrganization(t, app.DB)
 	createCustomSSOProvider(t, app, org.ID, fake, func(p *models.SSOProvider) {
 		p.AllowAutoCreate = false
 	})
 
 	// Pre-create the user matching the userinfo response.
-	user := testutil.CreateTestUser(t, app.DB, org.ID, testutil.WithEmail("user@example.com"))
+	user := testutil.CreateTestUser(t, app.DB, org.ID, testutil.WithEmail(email))
 
 	nonce := "good-nonce"
 	state := handlers.SSOState{
@@ -608,13 +613,15 @@ func TestApp_CallbackSSO_DomainRestrictionRejectsOutsideEmail(t *testing.T) {
 func TestApp_CallbackSSO_DisabledExistingUserRejected(t *testing.T) {
 	app := newSSOApp(t)
 	fake := newFakeOAuth(t)
+	email := testutil.UniqueEmail("sso-disabled")
+	fake.UserEmail = email
 	org := testutil.CreateTestOrganization(t, app.DB)
 	createCustomSSOProvider(t, app, org.ID, fake, func(p *models.SSOProvider) {
 		p.AllowAutoCreate = false
 	})
 
 	// Create existing user, then disable.
-	user := testutil.CreateTestUser(t, app.DB, org.ID, testutil.WithEmail("user@example.com"))
+	user := testutil.CreateTestUser(t, app.DB, org.ID, testutil.WithEmail(email))
 	require.NoError(t, app.DB.Model(user).Update("is_active", false).Error)
 
 	nonce := "disabled-user-nonce"
