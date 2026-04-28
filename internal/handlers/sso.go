@@ -162,8 +162,12 @@ func (a *App) InitSSO(r *fastglue.Request) error {
 	stateJSON, _ := json.Marshal(state)
 	stateKey := "sso:state:" + nonce
 
-	// Store state in Redis (5 min TTL)
-	if err := a.Redis.Set(r.RequestCtx, stateKey, stateJSON, 5*time.Minute).Err(); err != nil {
+	// Store state in Redis (5 min TTL). Use a fresh context with timeout instead
+	// of r.RequestCtx so the OAuth state survives even if the client disconnects
+	// after the redirect is issued.
+	redisCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := a.Redis.Set(redisCtx, stateKey, stateJSON, 5*time.Minute).Err(); err != nil {
 		a.Log.Error("Failed to store SSO state", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to initiate SSO", nil, "")
 	}
@@ -196,16 +200,19 @@ func (a *App) CallbackSSO(r *fastglue.Request) error {
 		return nil
 	}
 
-	// Retrieve and validate state from Redis
+	// Retrieve and validate state from Redis. Detached context so a client
+	// reload mid-callback can't cancel the lookup.
+	redisCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	stateKey := "sso:state:" + stateNonce
-	stateJSON, err := a.Redis.Get(r.RequestCtx, stateKey).Bytes()
+	stateJSON, err := a.Redis.Get(redisCtx, stateKey).Bytes()
 	if err != nil {
 		a.redirectWithError(r, "Invalid or expired state")
 		return nil
 	}
 
 	// Delete state immediately to prevent replay
-	a.Redis.Del(r.RequestCtx, stateKey)
+	a.Redis.Del(redisCtx, stateKey)
 
 	var state SSOState
 	if err := json.Unmarshal(stateJSON, &state); err != nil {
