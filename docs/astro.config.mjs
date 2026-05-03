@@ -8,9 +8,9 @@ export default defineConfig({
     starlight({
       title: 'Whatomate',
       description: 'A modern WhatsApp Business Platform',
-      social: {
-        github: 'https://github.com/shridarpatil/whatomate',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/shridarpatil/whatomate' },
+      ],
       sidebar: [
         {
           label: 'Getting Started',
