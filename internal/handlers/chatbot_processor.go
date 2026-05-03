@@ -47,7 +47,7 @@ type IncomingTextMessage struct {
 	ID         string `json:"id"`
 	Timestamp  string `json:"timestamp"`
 	Type       string `json:"type"`
-	Text      *struct {
+	Text       *struct {
 		Body string `json:"body"`
 	} `json:"text,omitempty"`
 	Interactive *struct {
@@ -413,7 +413,7 @@ func (a *App) processIncomingMessageFull(phoneNumberID string, msg IncomingTextM
 	}
 
 	// Try to match flow trigger keywords first (before greeting to avoid duplicate messages)
-	if flow := a.matchFlowTrigger(account.OrganizationID, account.Name, messageText); flow != nil {
+	if flow := a.matchFlowTrigger(account.OrganizationID, messageText); flow != nil {
 		a.startFlow(account, session, contact, flow)
 		return
 	}
@@ -754,7 +754,6 @@ func (a *App) sendAndSaveFlowMessage(account *models.WhatsAppAccount, contact *m
 	return err
 }
 
-
 // getOrCreateSession finds an active session or creates a new one
 // Returns the session and a boolean indicating if it's a new session
 func (a *App) getOrCreateSession(orgID, contactID uuid.UUID, accountName, phoneNumber string, timeoutMins int) (*models.ChatbotSession, bool) {
@@ -805,7 +804,7 @@ func (a *App) logSessionMessage(sessionID uuid.UUID, direction models.Direction,
 }
 
 // matchFlowTrigger checks if the message triggers any flow
-func (a *App) matchFlowTrigger(orgID uuid.UUID, accountName, messageText string) *models.ChatbotFlow {
+func (a *App) matchFlowTrigger(orgID uuid.UUID, messageText string) *models.ChatbotFlow {
 	// Use cached flows (includes steps)
 	flows, err := a.getChatbotFlowsCached(orgID)
 	if err != nil {
