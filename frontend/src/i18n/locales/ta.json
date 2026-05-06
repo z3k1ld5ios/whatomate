@@ -1786,6 +1786,7 @@
     "subtitle": "முகவர் மாற்றுகைகள் மற்றும் வரிசையை நிர்வகிக்கவும்",
     "waitingInQueue": "{count} வரிசையில் காத்திருக்கிறது",
     "pickNext": "அடுத்ததை எடு",
+    "queuePickupDisabled": "Queue pickup is disabled by your administrator",
     "myTransfers": "எனது மாற்றுகைகள்",
     "transfersAssignedToYou": "உங்களுக்கு ஒதுக்கப்பட்ட மாற்றுகைகள்",
     "contactsTransferred": "மனித ஆதரவுக்காக உங்களுக்கு மாற்றப்பட்ட தொடர்புகள்",
