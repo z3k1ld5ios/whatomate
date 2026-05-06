@@ -1786,6 +1786,7 @@
     "subtitle": "कतार",
     "waitingInQueue": "{count} प्रतीक्षा",
     "pickNext": "अगला लें",
+    "queuePickupDisabled": "Queue pickup is disabled by your administrator",
     "myTransfers": "मेरे",
     "transfersAssignedToYou": "आपको सौंपे",
     "contactsTransferred": "मानवीय सहायता",
