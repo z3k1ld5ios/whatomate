@@ -189,6 +189,15 @@ const router = createRouter({
           meta: { permission: 'canned_responses' }
         },
         {
+          path: 'settings/canned-responses/:id',
+          name: 'canned-response-detail',
+          component: () => import('@/views/settings/CannedResponseDetailView.vue'),
+          // stableKey reuses the component instance when :id flips from "new"
+          // to the new UUID after create, so the locally-set response (and the
+          // resulting Save-button reactivity) survives the route change.
+          meta: { permission: 'canned_responses', stableKey: true }
+        },
+        {
           path: 'settings/contacts',
           name: 'contacts',
           component: () => import('@/views/settings/ContactsView.vue'),
