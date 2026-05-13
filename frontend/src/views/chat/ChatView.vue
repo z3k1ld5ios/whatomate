@@ -848,15 +848,48 @@ async function sendCannedResponse() {
 
   const body = cannedPreview.value
   const responseId = selectedCannedResponse.value.id
+  const buttons = selectedCannedResponse.value.buttons || []
+  const replyButtons = buttons.filter(b => !b.type || b.type === 'reply')
+  const urlButtons = buttons.filter(b => b.type === 'url')
+
+  // WhatsApp Cloud API supports interactive button (≤3 reply) or single
+  // cta_url. Phone buttons and multi-URL combos aren't representable, so we
+  // fall back to plain text in those cases — same body, just no inline buttons.
+  let sendType: 'text' | 'interactive' = 'text'
+  let interactive: {
+    type: 'button' | 'cta_url'
+    body: string
+    buttons?: Array<{ id: string; title: string }>
+    button_text?: string
+    url?: string
+  } | undefined
+
+  if (buttons.length > 0 && replyButtons.length === buttons.length && replyButtons.length <= 3) {
+    sendType = 'interactive'
+    interactive = {
+      type: 'button',
+      body,
+      buttons: replyButtons.map(b => ({ id: b.id, title: b.title })),
+    }
+  } else if (buttons.length === 1 && urlButtons.length === 1) {
+    sendType = 'interactive'
+    interactive = {
+      type: 'cta_url',
+      body,
+      button_text: urlButtons[0].title,
+      url: urlButtons[0].url || '',
+    }
+  }
 
   isSendingCanned.value = true
   try {
     await contactsStore.sendMessage(
       contactsStore.currentContact.id,
-      'text',
-      { body },
+      sendType,
+      sendType === 'interactive' ? { body } : { body },
       contactsStore.replyingTo?.id,
-      selectedAccount.value || undefined
+      selectedAccount.value || undefined,
+      interactive ? { interactive } : undefined,
     )
     cannedResponsesService.use(responseId).catch(() => {})
     contactsStore.clearReplyingTo()

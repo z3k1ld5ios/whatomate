@@ -221,9 +221,22 @@ export const useContactsStore = defineStore('contacts', () => {
     }
   }
 
-  async function sendMessage(contactId: string, type: string, content: any, replyToMessageId?: string, whatsappAccount?: string) {
+  async function sendMessage(
+    contactId: string,
+    type: string,
+    content: any,
+    replyToMessageId?: string,
+    whatsappAccount?: string,
+    extra?: { interactive?: Parameters<typeof messagesService.send>[1]['interactive'] },
+  ) {
     try {
-      const response = await messagesService.send(contactId, { type, content, reply_to_message_id: replyToMessageId, whatsapp_account: whatsappAccount })
+      const response = await messagesService.send(contactId, {
+        type,
+        content,
+        reply_to_message_id: replyToMessageId,
+        whatsapp_account: whatsappAccount,
+        ...(extra?.interactive ? { interactive: extra.interactive } : {}),
+      })
       // API returns { status: "success", data: { ... } }
       const newMessage = response.data.data || response.data
       // Use addMessage which has duplicate checking (WebSocket may also broadcast this)

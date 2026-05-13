@@ -50,9 +50,6 @@ import {
   ChevronRight,
   Save,
   Settings,
-  ExternalLink,
-  Reply,
-  Phone,
 } from 'lucide-vue-next'
 import draggable from 'vuedraggable'
 import FlowChart from '@/components/chatbot/flow-builder/FlowChart.vue'
@@ -60,6 +57,7 @@ import FlowPreviewPanel from '@/components/chatbot/flow-preview/FlowPreviewPanel
 import UnsavedChangesDialog from '@/components/shared/UnsavedChangesDialog.vue'
 import AuditLogPanel from '@/components/shared/AuditLogPanel.vue'
 import MetadataPanel from '@/components/shared/MetadataPanel.vue'
+import MessageButtonsEditor from '@/components/shared/MessageButtonsEditor.vue'
 
 interface ApiConfig {
   url: string
@@ -687,51 +685,8 @@ function setInputType(type: string | number | bigint | Record<string, any> | nul
   }
 }
 
-// Button helpers
-function addButton(type: 'reply' | 'url' | 'phone' = 'reply') {
-  if (!selectedStep.value) return
-  if (selectedStep.value.buttons.length >= 10) {
-    toast.error(t('flowBuilder.maxOptionsError'))
-    return
-  }
-  const newButton: ButtonConfig = {
-    id: `btn_${selectedStep.value.buttons.length + 1}`,
-    title: '',
-    type
-  }
-  if (type === 'url') {
-    newButton.url = ''
-  } else if (type === 'phone') {
-    newButton.phone_number = ''
-  }
-  selectedStep.value.buttons.push(newButton)
-}
-
-// WhatsApp doesn't allow mixing reply buttons with CTA (URL/phone) buttons.
-// CTA buttons are limited to max 2 per message (can mix URL + phone).
-const hasReplyButtons = computed(() =>
-  selectedStep.value?.buttons.some((b: ButtonConfig) => !b.type || b.type === 'reply') ?? false
-)
-const ctaButtonCount = computed(() =>
-  selectedStep.value?.buttons.filter((b: ButtonConfig) => b.type === 'url' || b.type === 'phone').length ?? 0
-)
-const hasCtaButtons = computed(() => ctaButtonCount.value > 0)
-const ctaLimitReached = computed(() => ctaButtonCount.value >= 2)
-
-function removeButton(index: number) {
-  if (!selectedStep.value) return
-  selectedStep.value.buttons.splice(index, 1)
-  // Sync options if input type is select
-  syncButtonTitlesToOptions()
-}
-
-function updateButtonTitle(index: number, title: string) {
-  if (!selectedStep.value) return
-  selectedStep.value.buttons[index].title = title
-  // Sync options if input type is select
-  syncButtonTitlesToOptions()
-}
-
+// Keep the `select` input type's options in sync with reply-button titles.
+// Wired via the MessageButtonsEditor @change event.
 function syncButtonTitlesToOptions() {
   if (!selectedStep.value) return
   if (selectedStep.value.input_type !== 'select') return
@@ -1528,72 +1483,39 @@ function confirmCancel() {
 
                 <!-- Buttons Configuration -->
                 <template v-if="selectedStep.message_type === 'buttons'">
-                  <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                      <Label class="text-xs">{{ $t('flowBuilder.buttonOptions') }} ({{ selectedStep.buttons.length }}/{{ hasCtaButtons ? 2 : 10 }})</Label>
-                      <div class="flex gap-1">
-                        <Button variant="outline" size="sm" class="h-6 text-xs" @click="addButton('reply')" :disabled="selectedStep.buttons.length >= 10 || hasCtaButtons">
-                          <Reply class="h-3 w-3 mr-1" />
-                          {{ $t('flowBuilder.replyButton') }}
-                        </Button>
-                        <Button variant="outline" size="sm" class="h-6 text-xs" @click="addButton('url')" :disabled="ctaLimitReached || hasReplyButtons">
-                          <ExternalLink class="h-3 w-3 mr-1" />
-                          {{ $t('flowBuilder.urlButton') }}
-                        </Button>
-                        <Button variant="outline" size="sm" class="h-6 text-xs" @click="addButton('phone')" :disabled="ctaLimitReached || hasReplyButtons">
-                          <Phone class="h-3 w-3 mr-1" />
-                          {{ $t('flowBuilder.phoneButton') }}
-                        </Button>
-                      </div>
-                    </div>
-                    <div class="space-y-2">
-                      <div v-for="(btn, idx) in selectedStep.buttons" :key="idx" class="p-2 border rounded-md bg-muted/30 space-y-2">
-                        <div class="flex items-center gap-2">
-                          <Badge variant="outline" class="text-[10px] px-1.5">
-                            <component :is="btn.type === 'url' ? ExternalLink : btn.type === 'phone' ? Phone : Reply" class="h-2.5 w-2.5 mr-1" />
-                            {{ btn.type === 'url' ? 'URL' : btn.type === 'phone' ? $t('flowBuilder.phoneButton') : $t('flowBuilder.replyButton') }}
-                          </Badge>
-                          <Input :model-value="btn.title" @update:model-value="updateButtonTitle(idx, $event)" :placeholder="$t('flowBuilder.buttonTitle')" class="h-7 flex-1 text-xs" />
-                          <Button variant="ghost" size="icon" class="h-7 w-7" @click="removeButton(idx)">
-                            <Trash2 class="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
-                        <div v-if="btn.type === 'url'" class="flex gap-2">
-                          <Input v-model="btn.url" :placeholder="$t('flowBuilder.exampleUrlPlaceholder')" class="h-7 text-xs flex-1" />
-                        </div>
-                        <div v-else-if="btn.type === 'phone'" class="flex gap-2">
-                          <Input v-model="btn.phone_number" :placeholder="$t('flowBuilder.phoneNumberPlaceholder')" class="h-7 text-xs flex-1" />
-                        </div>
-                        <div v-else class="space-y-2">
-                          <Input v-model="btn.id" :placeholder="$t('flowBuilder.buttonIdPlaceholder')" class="h-7 text-xs" />
-                          <div class="flex items-center gap-2">
-                            <Label class="text-xs text-muted-foreground whitespace-nowrap">{{ $t('flowBuilder.goTo') }}:</Label>
-                            <Select
-                              :model-value="getButtonNextStep(getButtonId(btn, idx))"
-                              @update:model-value="setButtonNextStep(getButtonId(btn, idx), $event)"
+                  <MessageButtonsEditor
+                    :buttons="selectedStep.buttons"
+                    show-id-field
+                    @update:buttons="selectedStep.buttons = $event"
+                    @change="syncButtonTitlesToOptions"
+                  >
+                    <template #button-extra="{ button, index }">
+                      <div v-if="!button.type || button.type === 'reply'" class="flex items-center gap-2">
+                        <Label class="text-xs text-muted-foreground whitespace-nowrap">{{ $t('flowBuilder.goTo') }}:</Label>
+                        <Select
+                          :model-value="getButtonNextStep(getButtonId(button, index))"
+                          @update:model-value="setButtonNextStep(getButtonId(button, index), $event)"
+                        >
+                          <SelectTrigger class="h-7 text-xs flex-1">
+                            <SelectValue :placeholder="$t('flowBuilder.nextStepSequential')" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__default__">{{ $t('flowBuilder.nextStepSequential') }}</SelectItem>
+                            <SelectItem
+                              v-for="step in stepsWithNames"
+                              :key="`goto-${step.step_name}`"
+                              :value="step.step_name"
                             >
-                              <SelectTrigger class="h-7 text-xs flex-1">
-                                <SelectValue :placeholder="$t('flowBuilder.nextStepSequential')" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__default__">{{ $t('flowBuilder.nextStepSequential') }}</SelectItem>
-                                <SelectItem
-                                  v-for="step in stepsWithNames"
-                                  :key="`goto-${step.step_name}`"
-                                  :value="step.step_name"
-                                >
-                                  {{ step.step_name }}
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
+                              {{ step.step_name }}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                    <p class="text-[10px] text-muted-foreground">
-                      {{ $t('flowBuilder.buttonsHint') }}
-                    </p>
-                  </div>
+                    </template>
+                  </MessageButtonsEditor>
+                  <p class="text-[10px] text-muted-foreground">
+                    {{ $t('flowBuilder.buttonsHint') }}
+                  </p>
                 </template>
 
                 <!-- API Fetch Configuration -->

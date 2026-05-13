@@ -11,6 +11,9 @@ import DetailPageLayout from '@/components/shared/DetailPageLayout.vue'
 import MetadataPanel from '@/components/shared/MetadataPanel.vue'
 import AuditLogPanel from '@/components/shared/AuditLogPanel.vue'
 import UnsavedChangesDialog from '@/components/shared/UnsavedChangesDialog.vue'
+import MessageButtonsEditor from '@/components/shared/MessageButtonsEditor.vue'
+import PreviewButtonGroup from '@/components/chatbot/flow-preview/PreviewButtonGroup.vue'
+import type { ButtonConfig } from '@/types/flow-preview'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -63,6 +66,7 @@ const form = ref({
   content: '',
   category: '',
   is_active: true,
+  buttons: [] as ButtonConfig[],
 })
 
 const breadcrumbs = computed(() => [
@@ -104,6 +108,7 @@ function syncForm() {
     content: response.value.content,
     category: response.value.category || '',
     is_active: response.value.is_active,
+    buttons: (response.value.buttons || []).map(b => ({ ...b })),
   }
 }
 
@@ -124,6 +129,7 @@ async function save() {
         shortcut: form.value.shortcut || undefined,
         content: form.value.content,
         category: form.value.category || undefined,
+        buttons: form.value.buttons,
       })
       toast.success(t('common.createdSuccess', { resource: t('resources.CannedResponse') }))
       const created = (res.data as any).data || res.data
@@ -141,6 +147,7 @@ async function save() {
         content: form.value.content,
         category: form.value.category,
         is_active: form.value.is_active,
+        buttons: form.value.buttons,
       })
       toast.success(t('common.updatedSuccess', { resource: t('resources.CannedResponse') }))
       await loadResponse()
@@ -258,6 +265,29 @@ onMounted(() => { loadResponse() })
               @update:checked="form.is_active = $event"
               :disabled="!canWrite"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <!-- Buttons -->
+      <Card>
+        <CardHeader class="pb-3">
+          <CardTitle class="text-sm font-medium">{{ $t('cannedResponses.buttons', 'Buttons') }}</CardTitle>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <MessageButtonsEditor
+            :buttons="form.buttons"
+            :disabled="!canWrite"
+            @update:buttons="form.buttons = $event"
+          />
+
+          <!-- WhatsApp-style preview -->
+          <div v-if="form.buttons.length > 0" class="border-t pt-3">
+            <p class="text-[11px] text-muted-foreground mb-2">{{ $t('common.preview', 'Preview') }}</p>
+            <div class="max-w-sm bg-[#0a141a] dark:bg-[#0a141a] rounded-lg p-3 space-y-1">
+              <p v-if="form.content" class="text-sm text-white whitespace-pre-wrap">{{ form.content }}</p>
+              <PreviewButtonGroup :buttons="form.buttons" disabled />
+            </div>
           </div>
         </CardContent>
       </Card>
