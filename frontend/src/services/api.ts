@@ -243,8 +243,23 @@ export const dataService = {
 export const messagesService = {
   list: (contactId: string, params?: { page?: number; limit?: number; before_id?: string; account?: string }) =>
     api.get(`/contacts/${contactId}/messages`, { params }),
-  send: (contactId: string, data: { type: string; content: any; reply_to_message_id?: string; whatsapp_account?: string }) =>
-    api.post(`/contacts/${contactId}/messages`, data),
+  send: (
+    contactId: string,
+    data: {
+      type: string
+      content: any
+      reply_to_message_id?: string
+      whatsapp_account?: string
+      // Interactive button / cta_url payload. Mirrors backend InteractiveContent.
+      interactive?: {
+        type: 'button' | 'cta_url' | 'list'
+        body: string
+        buttons?: Array<{ id: string; title: string }>
+        button_text?: string
+        url?: string
+      }
+    },
+  ) => api.post(`/contacts/${contactId}/messages`, data),
   sendTemplate: (contactId: string, data: { template_name: string; template_params?: Record<string, string>; button_params?: Record<string, string>; account_name?: string }, headerFile?: File) => {
     if (headerFile) {
       const formData = new FormData()
@@ -376,6 +391,14 @@ export const chatbotService = {
     api.put(`/chatbot/transfers/${id}/assign`, { agent_id: agentId, team_id: teamId })
 }
 
+export interface CannedResponseButton {
+  id: string
+  title: string
+  type?: 'reply' | 'url' | 'phone'
+  url?: string
+  phone_number?: string
+}
+
 export interface CannedResponse {
   id: string
   name: string
@@ -384,17 +407,27 @@ export interface CannedResponse {
   category: string
   is_active: boolean
   usage_count: number
+  buttons?: CannedResponseButton[]
   created_at: string
   updated_at: string
+}
+
+interface CannedResponseUpsertPayload {
+  name?: string
+  shortcut?: string
+  content?: string
+  category?: string
+  is_active?: boolean
+  buttons?: CannedResponseButton[]
 }
 
 export const cannedResponsesService = {
   list: (params?: { category?: string; search?: string; active_only?: string; page?: number; limit?: number }) =>
     api.get<{ canned_responses: CannedResponse[]; total?: number }>('/canned-responses', { params }),
   get: (id: string) => api.get<CannedResponse>(`/canned-responses/${id}`),
-  create: (data: { name: string; shortcut?: string; content: string; category?: string }) =>
+  create: (data: CannedResponseUpsertPayload & { name: string; content: string }) =>
     api.post('/canned-responses', data),
-  update: (id: string, data: { name?: string; shortcut?: string; content?: string; category?: string; is_active?: boolean }) =>
+  update: (id: string, data: CannedResponseUpsertPayload) =>
     api.put(`/canned-responses/${id}`, data),
   delete: (id: string) => api.delete(`/canned-responses/${id}`),
   use: (id: string) => api.post(`/canned-responses/${id}/use`)
