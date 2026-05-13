@@ -801,30 +801,45 @@ function extractCannedTokens(content: string): string[] {
   return Array.from(seen)
 }
 
-const cannedPreview = computed(() => {
-  if (!selectedCannedResponse.value) return ''
+// Collect tokens from the message body AND every button field, so the param
+// dialog prompts for custom tokens used anywhere on the response.
+function extractCannedTokensFromResponse(r: CannedResponse): string[] {
+  const seen = new Set<string>(extractCannedTokens(r.content))
+  for (const btn of r.buttons || []) {
+    for (const t of extractCannedTokens(btn.title || '')) seen.add(t)
+    for (const t of extractCannedTokens(btn.url || '')) seen.add(t)
+    for (const t of extractCannedTokens(btn.phone_number || '')) seen.add(t)
+  }
+  return Array.from(seen)
+}
+
+// Shared {{...}} resolver used by the body preview and the button fields, so
+// `{{phone_number}}` works inside a button URL the same way it does in content.
+function resolveCannedTokens(text: string): string {
+  if (!text) return text
   const contact = contactsStore.currentContact
-  return selectedCannedResponse.value.content.replace(
-    /\{\{\s*([\w.-]+)\s*\}\}/g,
-    (_match, key: string) => {
-      if (key === 'contact_name') {
-        return contact?.profile_name || contact?.name || 'there'
-      }
-      if (key === 'phone_number') {
-        return contact?.phone_number || ''
-      }
-      if (key === 'user_name' || key === 'agent_name') {
-        return authStore.user?.full_name || ''
-      }
-      const value = cannedParamValues.value[key]
-      return value ? value : `{{${key}}}`
+  return text.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_match, key: string) => {
+    if (key === 'contact_name') {
+      return contact?.profile_name || contact?.name || 'there'
     }
-  )
-})
+    if (key === 'phone_number') {
+      return contact?.phone_number || ''
+    }
+    if (key === 'user_name' || key === 'agent_name') {
+      return authStore.user?.full_name || ''
+    }
+    const value = cannedParamValues.value[key]
+    return value ? value : `{{${key}}}`
+  })
+}
+
+const cannedPreview = computed(() =>
+  selectedCannedResponse.value ? resolveCannedTokens(selectedCannedResponse.value.content) : '',
+)
 
 function handleCannedSelect(response: CannedResponse) {
   selectedCannedResponse.value = response
-  const tokens = extractCannedTokens(response.content).filter(
+  const tokens = extractCannedTokensFromResponse(response).filter(
     t => !AUTO_RESOLVED_CANNED_TOKENS.has(t)
   )
   cannedParamNames.value = tokens
@@ -848,7 +863,14 @@ async function sendCannedResponse() {
 
   const body = cannedPreview.value
   const responseId = selectedCannedResponse.value.id
-  const buttons = selectedCannedResponse.value.buttons || []
+  // Substitute {{...}} tokens in every button field — same rules as the body —
+  // so URLs like https://x.com/u/{{phone_number}} resolve at send time.
+  const buttons = (selectedCannedResponse.value.buttons || []).map(b => ({
+    ...b,
+    title: resolveCannedTokens(b.title),
+    ...(b.url !== undefined ? { url: resolveCannedTokens(b.url) } : {}),
+    ...(b.phone_number !== undefined ? { phone_number: resolveCannedTokens(b.phone_number) } : {}),
+  }))
   const replyButtons = buttons.filter(b => !b.type || b.type === 'reply')
   const urlButtons = buttons.filter(b => b.type === 'url')
 
