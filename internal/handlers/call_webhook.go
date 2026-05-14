@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -115,7 +116,7 @@ func (a *App) processCallWebhook(phoneNumberID string, call any) {
 	switch ce.Event {
 	case "ringing":
 		// Broadcast incoming call via WebSocket (no SDP yet, WebRTC starts on "connect")
-		a.broadcastCallEvent(account.OrganizationID, websocket.TypeCallIncoming, map[string]any{
+		payload := map[string]any{
 			"call_log_id":  callLog.ID.String(),
 			"call_id":      ce.ID,
 			"caller_phone": ce.From,
@@ -123,7 +124,23 @@ func (a *App) processCallWebhook(phoneNumberID string, call any) {
 			"contact_name": contact.ProfileName,
 			"ivr_flow_id":  callLog.IVRFlowID,
 			"started_at":   now.Format(time.RFC3339),
-		})
+		}
+		// Sticky routing: if the customer clicked a voice_call button whose
+		// payload tags the originating agent, ring just that agent. Falls
+		// back to the org-wide broadcast on any failure (malformed payload,
+		// wrong org, agent offline / unavailable).
+		stickyAgentID := a.resolveStickyAgent(ce.BizOpaqueCallbackData, account.OrganizationID)
+		if stickyAgentID != nil {
+			payload["sticky_agent_id"] = stickyAgentID.String()
+			a.Log.Info("Sticky-routing incoming call to originating agent",
+				"call_id", ce.ID, "agent_id", *stickyAgentID)
+			a.WSHub.BroadcastToUser(account.OrganizationID, *stickyAgentID, websocket.WSMessage{
+				Type:    websocket.TypeCallIncoming,
+				Payload: payload,
+			})
+		} else {
+			a.broadcastCallEvent(account.OrganizationID, websocket.TypeCallIncoming, payload)
+		}
 
 	case "connect":
 		// "connect" carries the SDP offer from the consumer in session.sdp.
@@ -431,6 +448,47 @@ func (a *App) processCallPermissionReply(phoneNumberID, fromPhone string, reply 
 		wsPayload["expires_at"] = expiresAt.Format(time.RFC3339)
 	}
 	a.broadcastCallEvent(account.OrganizationID, websocket.TypeCallPermissionUpdate, wsPayload)
+}
+
+// resolveStickyAgent decodes the voice_call `payload` (echoed back as
+// `biz_opaque_callback_data`) and decides whether to sticky-route the
+// resulting call to the originating agent.
+//
+// Sticky routing is honored only when all of these hold:
+//   - payload is "agent:<uuid>" (any other shape is ignored, not an error)
+//   - the user belongs to this org (defends against a malicious sender
+//     embedding another org's agent id)
+//   - is_active && is_available (agent is on-shift and not "away")
+//   - has at least one live WebSocket connection (Hub.IsUserOnline)
+//
+// On any failure mode return nil; the caller falls back to the default
+// org-wide broadcast. All skip reasons are logged at info so the rollout
+// can be observed without escalating.
+func (a *App) resolveStickyAgent(rawPayload string, orgID uuid.UUID) *uuid.UUID {
+	if !strings.HasPrefix(rawPayload, "agent:") {
+		return nil
+	}
+	agentID, err := uuid.Parse(strings.TrimPrefix(rawPayload, "agent:"))
+	if err != nil {
+		a.Log.Info("Sticky-route skipped: malformed agent id",
+			"payload", rawPayload, "error", err)
+		return nil
+	}
+	var user models.User
+	if err := a.DB.Where(
+		"id = ? AND organization_id = ? AND is_active = ? AND is_available = ?",
+		agentID, orgID, true, true,
+	).First(&user).Error; err != nil {
+		a.Log.Info("Sticky-route skipped: agent not eligible",
+			"agent_id", agentID, "org_id", orgID, "reason", err.Error())
+		return nil
+	}
+	if a.WSHub == nil || !a.WSHub.IsUserOnline(orgID, agentID) {
+		a.Log.Info("Sticky-route skipped: agent offline",
+			"agent_id", agentID)
+		return nil
+	}
+	return &agentID
 }
 
 // broadcastCallEvent sends a call event to all connected clients in an organization
