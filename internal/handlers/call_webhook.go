@@ -33,6 +33,12 @@ func (a *App) processCallWebhook(phoneNumberID string, call any) {
 			Message string `json:"message"`
 		} `json:"error,omitempty"`
 		Duration int `json:"duration,omitempty"`
+		// BizOpaqueCallbackData is the opaque string we set as `payload` on a
+		// voice_call interactive button. Meta echoes it back here when the
+		// customer taps the button. Carries `agent:<uuid>` for sticky routing;
+		// parsed and acted on in a later PR — for now just logged so we can
+		// confirm Meta is round-tripping the value.
+		BizOpaqueCallbackData string `json:"biz_opaque_callback_data,omitempty"`
 	}
 
 	var ce callEvent
@@ -44,6 +50,14 @@ func (a *App) processCallWebhook(phoneNumberID string, call any) {
 
 	// Log raw payload to debug SDP and field mapping
 	a.Log.Debug("Raw call webhook payload", "payload", string(b))
+
+	// Surface the voice_call payload at info level so it shows up in
+	// production logs ahead of sticky-routing landing. Quiet when the
+	// caller didn't initiate via a voice_call button.
+	if ce.BizOpaqueCallbackData != "" {
+		a.Log.Info("Incoming call carries biz_opaque_callback_data",
+			"call_id", ce.ID, "payload", ce.BizOpaqueCallbackData)
+	}
 
 	// Check if this call_id belongs to an existing outgoing session
 	if a.CallManager != nil {
