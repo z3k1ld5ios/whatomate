@@ -11,6 +11,7 @@ import { contactsService, chatbotService, messagesService, customActionsService,
 import { useTagsStore } from '@/stores/tags'
 import { TagBadge } from '@/components/ui/tag-badge'
 import { getTagColorClass } from '@/lib/constants'
+import { getErrorMessage } from '@/lib/api-utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -704,7 +705,7 @@ async function sendMessage() {
     await nextTick()
     scrollToBottom()
   } catch (error) {
-    toast.error(t('chat.sendMessageFailed'))
+    toast.error(getErrorMessage(error, t('chat.sendMessageFailed')))
   } finally {
     isSending.value = false
   }
@@ -739,7 +740,7 @@ async function retryMessage(message: Message) {
 
     toast.success(t('chat.messageSent'))
   } catch (error) {
-    toast.error(t('chat.sendMessageFailed'))
+    toast.error(getErrorMessage(error, t('chat.sendMessageFailed')))
   } finally {
     retryingMessageId.value = null
   }
@@ -959,7 +960,7 @@ async function sendCannedResponse() {
     await nextTick()
     scrollToBottom()
   } catch (error) {
-    toast.error(t('chat.sendMessageFailed'))
+    toast.error(getErrorMessage(error, t('chat.sendMessageFailed')))
   } finally {
     isSendingCanned.value = false
   }
