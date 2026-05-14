@@ -895,19 +895,35 @@ async function sendCannedResponse() {
 
   // WhatsApp Cloud API supports: 1-3 reply buttons (interactive.button),
   // 4-10 reply rows (interactive.list — backend's SendInteractiveButtons
-  // auto-picks the right shape), or a single cta_url. Phone buttons and
-  // multi-URL / mixed combos aren't representable; the detail-page validator
-  // blocks save for those, so the text fallback here is just a safety net.
+  // auto-picks the right shape), a single cta_url, or a single voice_call
+  // (Business Calling click-to-call). Phone buttons and multi-URL / mixed
+  // combos aren't representable; the detail-page validator blocks save for
+  // those, so the text fallback here is just a safety net.
+  const voiceCallButtons = buttons.filter(b => b.type === 'voice_call')
   let sendType: 'text' | 'interactive' = 'text'
   let interactive: {
-    type: 'button' | 'list' | 'cta_url'
+    type: 'button' | 'list' | 'cta_url' | 'voice_call'
     body: string
     buttons?: Array<{ id: string; title: string }>
     button_text?: string
     url?: string
+    display_text?: string
+    ttl_minutes?: number
   } | undefined
 
-  if (buttons.length > 0 && replyButtons.length === buttons.length && replyButtons.length <= 10) {
+  if (buttons.length === 1 && voiceCallButtons.length === 1) {
+    const vc = voiceCallButtons[0]
+    sendType = 'interactive'
+    interactive = {
+      type: 'voice_call',
+      body,
+      // {{...}} tokens already resolved in the canned-preview path; the
+      // button title is what becomes Meta's display_text. Backend
+      // truncates to 20 chars and stamps the agent-id payload.
+      display_text: resolveCannedTokens(vc.title),
+      ttl_minutes: vc.ttl_minutes ?? 15,
+    }
+  } else if (buttons.length > 0 && replyButtons.length === buttons.length && replyButtons.length <= 10) {
     sendType = 'interactive'
     interactive = {
       type: replyButtons.length <= 3 ? 'button' : 'list',
