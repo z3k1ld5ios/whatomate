@@ -61,6 +61,7 @@ import {
   Smile,
   MoreVertical,
   Phone,
+  PhoneCall,
   Check,
   CheckCheck,
   Clock,
@@ -1425,6 +1426,24 @@ function getCTAUrlData(message: Message): CTAUrlData | null {
   }
 }
 
+interface VoiceCallData {
+  display_text: string
+  ttl_minutes?: number
+}
+
+function getVoiceCallData(message: Message): VoiceCallData | null {
+  if (message.message_type !== 'interactive' || !message.interactive_data) {
+    return null
+  }
+  if (message.interactive_data.type !== 'voice_call') {
+    return null
+  }
+  return {
+    display_text: (message.interactive_data as any).display_text || 'Call',
+    ttl_minutes: (message.interactive_data as any).ttl_minutes,
+  }
+}
+
 function getFlowButtonText(message: Message): string | null {
   if (message.message_type !== 'flow') {
     return null
@@ -2146,6 +2165,16 @@ async function sendMediaMessage() {
                     {{ getCTAUrlData(message)?.button_text }}
                   </div>
                 </a>
+                <!-- Voice call button - WhatsApp style, non-clickable in our chat -->
+                <div
+                  v-if="getVoiceCallData(message)"
+                  class="interactive-buttons mt-2 -mx-2 -mb-1.5 border-t"
+                >
+                  <div class="py-2 text-sm text-center font-medium flex items-center justify-center gap-1.5">
+                    <PhoneCall class="h-3.5 w-3.5" />
+                    {{ getVoiceCallData(message)?.display_text }}
+                  </div>
+                </div>
                 <!-- Flow button - WhatsApp style -->
                 <div
                   v-if="getFlowButtonText(message)"
