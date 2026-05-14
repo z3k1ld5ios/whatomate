@@ -86,10 +86,19 @@ func (m *Manager) initiateTransfer(session *CallSession, waAccount string, teamT
 	session.TransferStatus = models.CallTransferStatusWaiting
 	session.mu.Unlock()
 
-	// Check if the contact has an assigned agent (relationship manager).
-	// If so, ring them first before falling back to team rotation/broadcast.
+	// Pick which specific agent (if any) to ring first. Sticky routing from
+	// a voice_call button takes precedence — its eligibility was already
+	// validated when the webhook handler set StickyAgentID on the session,
+	// so we don't re-query is_available here. Otherwise fall back to the
+	// contact's assigned-user (relationship manager) rule; if neither
+	// matches, the call goes through team rotation / broadcast below.
 	var assignedAgentID *uuid.UUID
-	if session.ContactID != uuid.Nil {
+	switch {
+	case session.StickyAgentID != nil:
+		assignedAgentID = session.StickyAgentID
+		m.log.Info("Routing call to sticky agent (voice_call payload)",
+			"call_id", session.ID, "agent_id", assignedAgentID)
+	case session.ContactID != uuid.Nil:
 		var contact models.Contact
 		if m.db.Select("assigned_user_id").Where("id = ?", session.ContactID).First(&contact).Error == nil && contact.AssignedUserID != nil {
 			var agent models.User

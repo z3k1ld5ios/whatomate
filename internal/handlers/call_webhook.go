@@ -156,11 +156,15 @@ func (a *App) processCallWebhook(phoneNumberID string, call any) {
 			"answered_at": now,
 		})
 
-		// Delegate to CallManager with the SDP offer
+		// Delegate to CallManager with the SDP offer. Resolve the sticky
+		// agent again here — Meta echoes biz_opaque_callback_data on every
+		// call event, so we don't need to plumb state across the ringing →
+		// connect gap.
 		if a.IsCallingEnabledForOrg(account.OrganizationID) && sdpOffer != "" {
 			session := a.CallManager.GetSession(ce.ID)
 			if session == nil {
-				a.CallManager.HandleIncomingCall(account, contact, callLog, sdpOffer)
+				stickyAgentID := a.resolveStickyAgent(ce.BizOpaqueCallbackData, account.OrganizationID)
+				a.CallManager.HandleIncomingCall(account, contact, callLog, sdpOffer, stickyAgentID)
 			} else {
 				a.CallManager.HandleCallEvent(ce.ID, ce.Event)
 			}
