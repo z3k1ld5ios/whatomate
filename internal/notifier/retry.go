@@ -11,6 +11,12 @@ type RetryConfig struct {
 	Delay       time.Duration
 }
 
+// DefaultRetryConfig provides sensible defaults: 3 attempts with a 500ms delay.
+var DefaultRetryConfig = RetryConfig{
+	MaxAttempts: 3,
+	Delay:       500 * time.Millisecond,
+}
+
 // SendWithRetry calls Send up to MaxAttempts times, waiting Delay between each.
 func (n *Notifier) SendWithRetry(destURL string, p Payload, cfg RetryConfig) error {
 	if cfg.MaxAttempts <= 0 {
